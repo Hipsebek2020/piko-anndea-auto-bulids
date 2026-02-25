@@ -35,6 +35,27 @@ jobs:
             fi
           fi
 
+      - name: Install CLI dependencies
+        run: |
+          set -euo pipefail
+          sudo apt-get update
+          # basic tools (usually preinstalled, but ensure)
+          sudo apt-get install -y curl jq zip unzip
+
+          # install yq (TOML/JSON handling) if missing
+          if ! command -v yq >/dev/null 2>&1; then
+            YQ_URL="https://github.com/mikefarah/yq/releases/latest/download/yq_linux_amd64"
+            sudo curl -L "$YQ_URL" -o /usr/local/bin/yq
+            sudo chmod +x /usr/local/bin/yq
+          fi
+
+          # install htmlq (HTML parser used by utils.sh) if missing
+          if ! command -v htmlq >/dev/null 2>&1; then
+            HTMLQ_URL="https://github.com/mgdm/htmlq/releases/latest/download/htmlq-x86_64-linux"
+            sudo curl -L "$HTMLQ_URL" -o /usr/local/bin/htmlq
+            sudo chmod +x /usr/local/bin/htmlq
+          fi
+
       - name: Get next version code
         id: next_ver_code
         env:

@@ -534,7 +534,8 @@ build_rv() {
 		break
 	done
 	if [ -z "$pkg_name" ]; then
-		epr "ERROR: Could not find package name for ${table} from any source (tried: ${tried_dl}). Check your download URLs."
+		local tried_list="${tried_dl[*]:-none}"
+		epr "ERROR: Could not find package name for ${table} from any source (tried: ${tried_list}). Check your download URLs."
 		return 0
 	fi
 	local list_patches

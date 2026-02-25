@@ -102,6 +102,7 @@ cli-source = "j-hc/revanced-cli"
 integrations-source = "anddea/revanced-integrations"
 apkmirror-dlurl = "https://www.apkmirror.com/apk/google-inc/youtube"
 uptodown-dlurl = "https://youtube.en.uptodown.com/android"
+archive-dlurl = "https://archive.org/download/jhc-apks/apks/com.google.android.youtube"
 version = "auto"
 
 [Twitter-Piko]
