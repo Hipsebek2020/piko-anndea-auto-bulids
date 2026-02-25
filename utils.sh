@@ -13,7 +13,7 @@ OS=$(uname -o)
 toml_prep() {
 	if [ ! -f "$1" ]; then return 1; fi
 	if [ "${1##*.}" == toml ]; then
-		__TOML__=$($TOML --output json --file "$1" .)
+		__TOML__=$(yq -o json "$1")
 	elif [ "${1##*.}" == json ]; then
 		__TOML__=$(cat "$1")
 	else abort "config extension not supported"; fi
@@ -48,13 +48,20 @@ abort() {
 	epr "ABORT: ${1-}"
 	exit 1
 }
-java() { env -i java "$@"; }
+java() { 
+    if [ -d "/usr/local/opt/openjdk@17" ]; then
+        env -i JAVA_HOME="/usr/local/opt/openjdk@17" PATH="/usr/local/opt/openjdk@17/bin:$PATH" /usr/local/opt/openjdk@17/bin/java "$@"
+    else
+        env -i java "$@"
+    fi
+}
 
 get_prebuilts() {
 	local cli_src=$1 cli_ver=$2 patches_src=$3 patches_ver=$4
 	pr "Getting prebuilts (${patches_src%/*})" >&2
 	local cl_dir=${patches_src%/*}
-	cl_dir=${TEMP_DIR}/${cl_dir,,}-rv
+	cl_dir=$(echo "$cl_dir" | tr '[:upper:]' '[:lower:]')
+	cl_dir="${TEMP_DIR}/${cl_dir}-rv"
 	[ -d "$cl_dir" ] || mkdir "$cl_dir"
 
 	for src_ver in "$cli_src CLI $cli_ver cli" "$patches_src Patches $patches_ver patches"; do
@@ -68,7 +75,8 @@ get_prebuilts() {
 		else abort unreachable; fi
 
 		local dir=${src%/*}
-		dir=${TEMP_DIR}/${dir,,}-rv
+		dir=$(echo "${dir}" | tr '[:upper:]' '[:lower:]')
+		dir="${TEMP_DIR}/${dir}-rv"
 		[ -d "$dir" ] || mkdir "$dir"
 
 		local rv_rel="https://api.github.com/repos/${src}/releases" name_ver
@@ -144,9 +152,9 @@ set_prebuilts() {
 	local arch
 	arch=$(uname -m)
 	if [ "$arch" = aarch64 ]; then arch=arm64; elif [ "${arch:0:5}" = "armv7" ]; then arch=arm; fi
-	HTMLQ="${BIN_DIR}/htmlq/htmlq-${arch}"
+	HTMLQ="htmlq"
 	AAPT2="${BIN_DIR}/aapt2/aapt2-${arch}"
-	TOML="${BIN_DIR}/toml/tq-${arch}"
+	TOML="yq"
 }
 
 config_update() {
@@ -162,7 +170,7 @@ config_update() {
 		if [ "$enabled" = "false" ]; then continue; fi
 		PATCHES_SRC=$(toml_get "$t" patches-source) || PATCHES_SRC=$DEF_PATCHES_SRC
 		PATCHES_VER=$(toml_get "$t" patches-version) || PATCHES_VER=$DEF_PATCHES_VER
-		if [[ -v sources["$PATCHES_SRC/$PATCHES_VER"] ]]; then
+		if [ -n "${sources["$PATCHES_SRC/$PATCHES_VER"]:-}" ]; then
 			if [ "${sources["$PATCHES_SRC/$PATCHES_VER"]}" = 1 ]; then upped+=("$table_name"); fi
 		else
 			sources["$PATCHES_SRC/$PATCHES_VER"]=0
@@ -221,7 +229,7 @@ _req() {
 		mv -f "$dlp" "$op"
 	fi
 }
-req() { _req "$1" "$2" -H "User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:108.0) Gecko/20100101 Firefox/108.0"; }
+req() { _req "$1" "$2" -H "User-Agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36" -H "Accept: text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8" -H "Accept-Language: en-US,en;q=0.5" -H "Accept-Encoding: gzip, deflate, br" -H "DNT: 1" -H "Connection: keep-alive" -H "Upgrade-Insecure-Requests: 1"; }
 gh_req() { _req "$1" "$2" -H "$GH_HEADER"; }
 gh_dl() {
 	if [ ! -f "$1" ]; then
@@ -495,28 +503,30 @@ check_sig() {
 }
 
 build_rv() {
-	eval "declare -A args=${1#*=}"
-	local version="" pkg_name=""
-	local mode_arg=${args[build_mode]} version_mode=${args[version]}
-	local app_name=${args[app_name]}
-	local app_name_l=${app_name,,}
+	local args_string="$1"
+	IFS='|' read -r cli_jar patches_jar rv_brand excluded_patches included_patches exclusive_patches version app_name patcher_args table build_mode uptodown_dlurl apkmirror_dlurl archive_dlurl dl_from arch include_stock dpi module_prop_name <<< "$args_string"
+	local pkg_name=""
+	local mode_arg=$build_mode version_mode=$version
+	local app_name_l=$(echo "$app_name" | tr '[:upper:]' '[:lower:]')
 	app_name_l=${app_name_l// /-}
-	local table=${args[table]}
-	local dl_from=${args[dl_from]}
-	local arch=${args[arch]}
 	local arch_f="${arch// /}"
 
 	local p_patcher_args=()
-	if [ "${args[excluded_patches]}" ]; then p_patcher_args+=("$(join_args "${args[excluded_patches]}" -d)"); fi
-	if [ "${args[included_patches]}" ]; then p_patcher_args+=("$(join_args "${args[included_patches]}" -e)"); fi
-	[ "${args[exclusive_patches]}" = true ] && p_patcher_args+=("--exclusive")
+	if [ "$excluded_patches" ]; then p_patcher_args+=("$(join_args "$excluded_patches" -d)"); fi
+	if [ "$included_patches" ]; then p_patcher_args+=("$(join_args "$included_patches" -e)"); fi
+	[ "$exclusive_patches" = true ] && p_patcher_args+=("--exclusive")
 
 	local tried_dl=()
 	for dl_p in archive apkmirror uptodown; do
-		if [ -z "${args[${dl_p}_dlurl]}" ]; then continue; fi
-		if ! get_${dl_p}_resp "${args[${dl_p}_dlurl]}" || ! pkg_name=$(get_"${dl_p}"_pkg_name); then
-			args[${dl_p}_dlurl]=""
-			epr "ERROR: Could not find ${table} in ${dl_p}"
+		local current_dlurl=""
+		case $dl_p in
+			archive) current_dlurl="$archive_dlurl" ;;
+			apkmirror) current_dlurl="$apkmirror_dlurl" ;;
+			uptodown) current_dlurl="$uptodown_dlurl" ;;
+		esac
+		if [ -z "$current_dlurl" ]; then continue; fi
+		if ! get_${dl_p}_resp "$current_dlurl" || ! pkg_name=$(get_"${dl_p}"_pkg_name); then
+			wpr "Could not find ${table} in ${dl_p}, trying next source..."
 			continue
 		fi
 		tried_dl+=("$dl_p")
@@ -524,7 +534,7 @@ build_rv() {
 		break
 	done
 	if [ -z "$pkg_name" ]; then
-		epr "empty pkg name, not building ${table}."
+		epr "ERROR: Could not find package name for ${table} from any source (tried: ${tried_dl}). Check your download URLs."
 		return 0
 	fi
 	local list_patches
@@ -533,7 +543,7 @@ build_rv() {
 	local get_latest_ver=false
 	if [ "$version_mode" = auto ]; then
 		if ! version=$(get_patch_last_supported_ver "$list_patches" "$pkg_name" \
-			"${args[included_patches]}" "${args[excluded_patches]}" "${args[exclusive_patches]}"); then
+			"$included_patches" "$excluded_patches" "$exclusive_patches"); then
 			exit 1
 		elif [ -z "$version" ]; then get_latest_ver=true; fi
 	elif isoneof "$version_mode" latest beta; then
@@ -567,16 +577,22 @@ build_rv() {
 	local stock_apk="${TEMP_DIR}/${pkg_name}-${version_f}-${arch_f}.apk"
 	if [ ! -f "$stock_apk" ]; then
 		for dl_p in archive apkmirror uptodown; do
-			if [ -z "${args[${dl_p}_dlurl]}" ]; then continue; fi
+			local current_dlurl=""
+			case $dl_p in
+				archive) current_dlurl="$archive_dlurl" ;;
+				apkmirror) current_dlurl="$apkmirror_dlurl" ;;
+				uptodown) current_dlurl="$uptodown_dlurl" ;;
+			esac
+			if [ -z "$current_dlurl" ]; then continue; fi
 			pr "Downloading '${table}' from '${dl_p}'"
 			if ! isoneof $dl_p "${tried_dl[@]}"; then
-				if ! get_${dl_p}_resp "${args[${dl_p}_dlurl]}"; then
+				if ! get_${dl_p}_resp "$current_dlurl"; then
 					epr "ERROR: Could not get '${table}' from '${dl_p}'"
 					continue
 				fi
 			fi
-			if ! dl_${dl_p} "${args[${dl_p}_dlurl]}" "$version" "$stock_apk" "$arch" "${args[dpi]}" "$get_latest_ver"; then
-				epr "ERROR: Could not download '${table}' from '${dl_p}' with version '${version}', arch '${arch}', dpi '${args[dpi]}'"
+			if ! dl_${dl_p} "$current_dlurl" "$version" "$stock_apk" "$arch" "$dpi" "$get_latest_ver"; then
+				epr "ERROR: Could not download '${table}' from '${dl_p}' with version '${version}', arch '${arch}', dpi '${dpi}'"
 				continue
 			fi
 			break
@@ -597,9 +613,9 @@ build_rv() {
 	fi
 
 	local patcher_args patched_apk build_mode
-	local rv_brand_f=${args[rv_brand],,}
+	local rv_brand_f=$(echo "$rv_brand" | tr '[:upper:]' '[:lower:]')
 	rv_brand_f=${rv_brand_f// /-}
-	if [ "${args[patcher_args]}" ]; then p_patcher_args+=("${args[patcher_args]}"); fi
+	if [ "$patcher_args" ]; then p_patcher_args+=("$patcher_args"); fi
 	for build_mode in "${build_mode_arr[@]}"; do
 		patcher_args=("${p_patcher_args[@]}")
 		pr "Building '${table}' in '$build_mode' mode"
@@ -634,7 +650,7 @@ build_rv() {
 			fi
 		fi
 		if [ "${NORB:-}" != true ] || [ ! -f "$patched_apk" ]; then
-			if ! patch_apk "$stock_apk_to_patch" "$patched_apk" "${patcher_args[*]}" "${args[cli]}" "${args[ptjar]}"; then
+			if ! patch_apk "$stock_apk_to_patch" "$patched_apk" "${patcher_args[*]}" "$cli_jar" "$patches_jar"; then
 				epr "Building '${table}' failed!"
 				return 0
 			fi
@@ -655,17 +671,17 @@ build_rv() {
 
 		local patches_ver="${patches_jar##*-}"
 		module_prop \
-			"${args[module_prop_name]}" \
-			"${app_name} ${args[rv_brand]}" \
+			"$module_prop_name" \
+			"${app_name} ${rv_brand}" \
 			"${version} (patches ${patches_ver})" \
-			"${app_name} ${args[rv_brand]} module" \
+			"${app_name} ${rv_brand} module" \
 			"https://raw.githubusercontent.com/${GITHUB_REPOSITORY-}/update/${upj}" \
 			"$base_template"
 
 		local module_output="${app_name_l}-${rv_brand_f}-module-v${version_f}-${arch_f}.zip"
 		pr "Packing module ${table}"
 		cp -f "$patched_apk" "${base_template}/base.apk"
-		if [ "${args[include_stock]}" = true ]; then cp -f "$stock_apk" "${base_template}/${pkg_name}.apk"; fi
+		if [ "$include_stock" = true ]; then cp -f "$stock_apk" "${base_template}/${pkg_name}.apk"; fi
 		pushd >/dev/null "$base_template" || abort "Module template dir not found"
 		zip -"$COMPRESSION_LEVEL" -FSqr "${CWD}/${BUILD_DIR}/${module_output}" .
 		popd >/dev/null || :

@@ -12,7 +12,11 @@ fi
 source utils.sh
 
 jq --version >/dev/null || abort "\`jq\` is not installed. install it with 'apt install jq' or equivalent"
-java --version >/dev/null || abort "\`openjdk 17\` is not installed. install it with 'apt install openjdk-17-jre' or equivalent"
+if [ -d "/usr/local/opt/openjdk@17" ]; then
+    export JAVA_HOME="/usr/local/opt/openjdk@17"
+    export PATH="/usr/local/opt/openjdk@17/bin:$PATH"
+fi
+java --version >/dev/null || abort "\`openjdk 17\` is not installed. install it with 'apt install openjdk-17-jre' or 'brew install openjdk@17'"
 zip --version >/dev/null || abort "\`zip\` is not installed. install it with 'apt install zip' or equivalent"
 
 set_prebuilts
@@ -71,7 +75,25 @@ for table_name in $(toml_get_table_names); do
 		idx=$((idx - 1))
 	fi
 
-	declare -A app_args
+	declare app_args_cli=""
+	declare app_args_ptjar=""
+	declare app_args_rv_brand=""
+	declare app_args_excluded_patches=""
+	declare app_args_included_patches=""
+	declare app_args_exclusive_patches=""
+	declare app_args_version=""
+	declare app_args_app_name=""
+	declare app_args_patcher_args=""
+	declare app_args_table=""
+	declare app_args_build_mode=""
+	declare app_args_uptodown_dlurl=""
+	declare app_args_apkmirror_dlurl=""
+	declare app_args_archive_dlurl=""
+	declare app_args_dl_from=""
+	declare app_args_arch=""
+	declare app_args_include_stock=""
+	declare app_args_dpi=""
+	declare app_args_module_prop_name=""
 	patches_src=$(toml_get "$t" patches-source) || patches_src=$DEF_PATCHES_SRC
 	patches_ver=$(toml_get "$t" patches-version) || patches_ver=$DEF_PATCHES_VER
 	cli_src=$(toml_get "$t" cli-source) || cli_src=$DEF_CLI_SRC
@@ -81,74 +103,74 @@ for table_name in $(toml_get_table_names); do
 		abort "could not download rv prebuilts"
 	fi
 	read -r cli_jar patches_jar <<<"$PREBUILTS"
-	app_args[cli]=$cli_jar
-	app_args[ptjar]=$patches_jar
-	app_args[rv_brand]=$(toml_get "$t" rv-brand) || app_args[rv_brand]=$DEF_RV_BRAND
+	app_args_cli=$cli_jar
+	app_args_ptjar=$patches_jar
+	app_args_rv_brand=$(toml_get "$t" rv-brand) || app_args_rv_brand=$DEF_RV_BRAND
 
-	app_args[excluded_patches]=$(toml_get "$t" excluded-patches) || app_args[excluded_patches]=""
-	if [ -n "${app_args[excluded_patches]}" ] && [[ ${app_args[excluded_patches]} != *'"'* ]]; then abort "patch names inside excluded-patches must be quoted"; fi
-	app_args[included_patches]=$(toml_get "$t" included-patches) || app_args[included_patches]=""
-	if [ -n "${app_args[included_patches]}" ] && [[ ${app_args[included_patches]} != *'"'* ]]; then abort "patch names inside included-patches must be quoted"; fi
-	app_args[exclusive_patches]=$(toml_get "$t" exclusive-patches) && vtf "${app_args[exclusive_patches]}" "exclusive-patches" || app_args[exclusive_patches]=false
-	app_args[version]=$(toml_get "$t" version) || app_args[version]="auto"
-	app_args[app_name]=$(toml_get "$t" app-name) || app_args[app_name]=$table_name
-	app_args[patcher_args]=$(toml_get "$t" patcher-args) || app_args[patcher_args]=""
-	app_args[table]=$table_name
-	app_args[build_mode]=$(toml_get "$t" build-mode) && {
-		if ! isoneof "${app_args[build_mode]}" both apk module; then
-			abort "ERROR: build-mode '${app_args[build_mode]}' is not a valid option for '${table_name}': only 'both', 'apk' or 'module' is allowed"
+	app_args_excluded_patches=$(toml_get "$t" excluded-patches) || app_args_excluded_patches=""
+	if [ -n "$app_args_excluded_patches" ] && [[ $app_args_excluded_patches != *'"'* ]]; then abort "patch names inside excluded-patches must be quoted"; fi
+	app_args_included_patches=$(toml_get "$t" included-patches) || app_args_included_patches=""
+	if [ -n "$app_args_included_patches" ] && [[ $app_args_included_patches != *'"'* ]]; then abort "patch names inside included-patches must be quoted"; fi
+	app_args_exclusive_patches=$(toml_get "$t" exclusive-patches) && vtf "$app_args_exclusive_patches" "exclusive-patches" || app_args_exclusive_patches=false
+	app_args_version=$(toml_get "$t" version) || app_args_version="auto"
+	app_args_app_name=$(toml_get "$t" app-name) || app_args_app_name=$table_name
+	app_args_patcher_args=$(toml_get "$t" patcher-args) || app_args_patcher_args=""
+	app_args_table=$table_name
+	app_args_build_mode=$(toml_get "$t" build-mode) && {
+		if ! isoneof "$app_args_build_mode" both apk module; then
+			abort "ERROR: build-mode '$app_args_build_mode' is not a valid option for '$table_name': only 'both', 'apk' or 'module' is allowed"
 		fi
-	} || app_args[build_mode]=apk
-	app_args[uptodown_dlurl]=$(toml_get "$t" uptodown-dlurl) && {
-		app_args[uptodown_dlurl]=${app_args[uptodown_dlurl]%/}
-		app_args[uptodown_dlurl]=${app_args[uptodown_dlurl]%download}
-		app_args[uptodown_dlurl]=${app_args[uptodown_dlurl]%/}
-		app_args[dl_from]=uptodown
-	} || app_args[uptodown_dlurl]=""
-	app_args[apkmirror_dlurl]=$(toml_get "$t" apkmirror-dlurl) && {
-		app_args[apkmirror_dlurl]=${app_args[apkmirror_dlurl]%/}
-		app_args[dl_from]=apkmirror
-	} || app_args[apkmirror_dlurl]=""
-	app_args[archive_dlurl]=$(toml_get "$t" archive-dlurl) && {
-		app_args[archive_dlurl]=${app_args[archive_dlurl]%/}
-		app_args[dl_from]=archive
-	} || app_args[archive_dlurl]=""
-	if [ -z "${app_args[dl_from]-}" ]; then abort "ERROR: no 'apkmirror_dlurl', 'uptodown_dlurl' or 'archive_dlurl' option was set for '$table_name'."; fi
-	app_args[arch]=$(toml_get "$t" arch) || app_args[arch]="all"
-	if ! isoneof "${app_args[arch]}" "both" "all" "arm64-v8a" "arm-v7a" "x86_64" "x86"; then
-		abort "wrong arch '${app_args[arch]}' for '$table_name'"
+	} || app_args_build_mode=apk
+	app_args_uptodown_dlurl=$(toml_get "$t" uptodown-dlurl) && {
+		app_args_uptodown_dlurl=${app_args_uptodown_dlurl%/}
+		app_args_uptodown_dlurl=${app_args_uptodown_dlurl%download}
+		app_args_uptodown_dlurl=${app_args_uptodown_dlurl%/}
+		app_args_dl_from=uptodown
+	} || app_args_uptodown_dlurl=""
+	app_args_apkmirror_dlurl=$(toml_get "$t" apkmirror-dlurl) && {
+		app_args_apkmirror_dlurl=${app_args_apkmirror_dlurl%/}
+		app_args_dl_from=apkmirror
+	} || app_args_apkmirror_dlurl=""
+	app_args_archive_dlurl=$(toml_get "$t" archive-dlurl) && {
+		app_args_archive_dlurl=${app_args_archive_dlurl%/}
+		app_args_dl_from=archive
+	} || app_args_archive_dlurl=""
+	if [ -z "$app_args_dl_from" ]; then abort "ERROR: no 'apkmirror_dlurl', 'uptodown_dlurl' or 'archive_dlurl' option was set for '$table_name'."; fi
+	app_args_arch=$(toml_get "$t" arch) || app_args_arch="all"
+	if ! isoneof "$app_args_arch" "both" "all" "arm64-v8a" "arm-v7a" "x86_64" "x86"; then
+		abort "wrong arch '$app_args_arch' for '$table_name'"
 	fi
 
-	app_args[include_stock]=$(toml_get "$t" include-stock) || app_args[include_stock]=true && vtf "${app_args[include_stock]}" "include-stock"
-	app_args[dpi]=$(toml_get "$t" dpi) || app_args[dpi]="$DEF_DPI_LIST"
-	table_name_f=${table_name,,}
+	app_args_include_stock=$(toml_get "$t" include-stock) || app_args_include_stock=true && vtf "$app_args_include_stock" "include-stock"
+	app_args_dpi=$(toml_get "$t" dpi) || app_args_dpi="$DEF_DPI_LIST"
+	table_name_f=$(echo "$table_name" | tr '[:upper:]' '[:lower:]')
 	table_name_f=${table_name_f// /-}
-	app_args[module_prop_name]=$(toml_get "$t" module-prop-name) || app_args[module_prop_name]="${table_name_f}-jhc"
+	app_args_module_prop_name=$(toml_get "$t" module-prop-name) || app_args_module_prop_name="${table_name_f}-jhc"
 
-	if [ "${app_args[arch]}" = both ]; then
-		app_args[table]="$table_name (arm64-v8a)"
-		app_args[arch]="arm64-v8a"
-		module_prop_name_b=${app_args[module_prop_name]}
-		app_args[module_prop_name]="${module_prop_name_b}-arm64"
+	if [ "$app_args_arch" = both ]; then
+		app_args_table="$table_name (arm64-v8a)"
+		app_args_arch="arm64-v8a"
+		module_prop_name_b=$app_args_module_prop_name
+		app_args_module_prop_name="${module_prop_name_b}-arm64"
 		idx=$((idx + 1))
-		build_rv "$(declare -p app_args)" &
-		app_args[table]="$table_name (arm-v7a)"
-		app_args[arch]="arm-v7a"
-		app_args[module_prop_name]="${module_prop_name_b}-arm"
+		build_rv "$app_args_cli|$app_args_ptjar|$app_args_rv_brand|$app_args_excluded_patches|$app_args_included_patches|$app_args_exclusive_patches|$app_args_version|$app_args_app_name|$app_args_patcher_args|$app_args_table|$app_args_build_mode|$app_args_uptodown_dlurl|$app_args_apkmirror_dlurl|$app_args_archive_dlurl|$app_args_dl_from|$app_args_arch|$app_args_include_stock|$app_args_dpi|$app_args_module_prop_name" &
+		app_args_table="$table_name (arm-v7a)"
+		app_args_arch="arm-v7a"
+		app_args_module_prop_name="${module_prop_name_b}-arm"
 		if ((idx >= PARALLEL_JOBS)); then
 			wait -n
 			idx=$((idx - 1))
 		fi
 		idx=$((idx + 1))
-		build_rv "$(declare -p app_args)" &
+		build_rv "$app_args_cli|$app_args_ptjar|$app_args_rv_brand|$app_args_excluded_patches|$app_args_included_patches|$app_args_exclusive_patches|$app_args_version|$app_args_app_name|$app_args_patcher_args|$app_args_table|$app_args_build_mode|$app_args_uptodown_dlurl|$app_args_apkmirror_dlurl|$app_args_archive_dlurl|$app_args_dl_from|$app_args_arch|$app_args_include_stock|$app_args_dpi|$app_args_module_prop_name" &
 	else
-		if [ "${app_args[arch]}" = "arm64-v8a" ]; then
-			app_args[module_prop_name]="${app_args[module_prop_name]}-arm64"
-		elif [ "${app_args[arch]}" = "arm-v7a" ]; then
-			app_args[module_prop_name]="${app_args[module_prop_name]}-arm"
+		if [ "$app_args_arch" = "arm64-v8a" ]; then
+			app_args_module_prop_name="${app_args_module_prop_name}-arm64"
+		elif [ "$app_args_arch" = "arm-v7a" ]; then
+			app_args_module_prop_name="${app_args_module_prop_name}-arm"
 		fi
 		idx=$((idx + 1))
-		build_rv "$(declare -p app_args)" &
+		build_rv "$app_args_cli|$app_args_ptjar|$app_args_rv_brand|$app_args_excluded_patches|$app_args_included_patches|$app_args_exclusive_patches|$app_args_version|$app_args_app_name|$app_args_patcher_args|$app_args_table|$app_args_build_mode|$app_args_uptodown_dlurl|$app_args_apkmirror_dlurl|$app_args_archive_dlurl|$app_args_dl_from|$app_args_arch|$app_args_include_stock|$app_args_dpi|$app_args_module_prop_name" &
 	fi
 done
 wait
