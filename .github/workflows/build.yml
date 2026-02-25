@@ -60,6 +60,11 @@ jobs:
           echo "${DELIM}" >> "$GITHUB_OUTPUT"
           cp -f build.md build.tmp
 
+      - name: Improve changelog
+        run: |
+          echo -e "\n### Recent Changes\n" >> build.md
+          git log -n 5 --oneline >> build.md
+
       - name: Upload modules to release
         uses: svenstaro/upload-release-action@v2
         with:
