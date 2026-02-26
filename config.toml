@@ -1,14 +1,9 @@
 parallel-jobs = 2
 
-[default]
-patcher-args = []
-included-patches = []
-excluded-patches = []
-
-# ==================== YouTube RVX (anddea) ====================
+# ==================== YouTube RVX (anddea) - spoof pod VLC ====================
 [YouTube-RVX]
 app-name = "YouTube RVX"
-package-name = "org.videolan.vlc"          # ← TWOJA ZMIANA (spoof VLC)
+package-name = "org.videolan.vlc"          # ← spoof VLC
 enabled = true
 build-mode = "both"
 version = "auto"
@@ -21,9 +16,9 @@ apkmirror-dlurl = "https://apkmirror.com/apk/google-inc/youtube"
 archive-dlurl = "https://archive.org/download/geologically/apks/com.google.android.youtube"
 uptodown-dlurl = "https://youtube.en.uptodown.com/android"
 
-# ==================== X / Twitter Piko ====================
+# ==================== X (Piko) - Material You + zostaje X ====================
 [X-Piko]
-app-name = "X (Piko)"                       # zostaje X, nie Twitter
+app-name = "X (Piko)"
 package-name = "com.twitter.android"
 enabled = true
 build-mode = "apk"
@@ -33,8 +28,8 @@ patches-source = "crimera/piko"
 cli-source = "MorpheApp/morphe-cli"
 integrations-source = ""
 
-included-patches = ["Dynamic color"]        # ← włącza Material You
-excluded-patches = ["Bring back twitter"]   # ← blokuje zmianę na Twitter
+included-patches = "'Dynamic color'"           # ← włącza Material You
+excluded-patches = "'Bring back twitter'"      # ← blokuje zmianę nazwy na Twitter
 
 apkmirror-dlurl = "https://www.apkmirror.com/apk/x-corp/twitter/"
 archive-dlurl = "https://archive.org/download/geologically/apks/com.twitter.android"
