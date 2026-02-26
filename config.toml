@@ -1,5 +1,6 @@
 enable-module-update = true # set this to false if you do not want to receive updates for the module
 parallel-jobs = 3
+remove-rv-integrations-checks = true
 
 # add 'enabled = false' for not patching a specific app or remove it from the config
 # see https://github.com/j-hc/revanced-magisk-module/blob/main/CONFIG.md for more detailed explanations
@@ -94,7 +95,7 @@ enabled = false
 apkmirror-dlurl = "https://www.apkmirror.com/apk/smart-launcher-team/icon-pack-studio/"
 
 [YouTube-RVX]
-app-name = "YouTube"
+app-name = "com.google.android.youtube"
 enabled = true
 build-mode = "both"
 patches-source = "anddea/revanced-patches"
@@ -104,9 +105,10 @@ apkmirror-dlurl = "https://www.apkmirror.com/apk/google-inc/youtube"
 uptodown-dlurl = "https://youtube.en.uptodown.com/android"
 archive-dlurl = "https://archive.org/download/jhc-apks/apks/com.google.android.youtube"
 version = "auto"
+patcher-args = ""
 
 [Twitter-Piko]
-app-name = "X-Piko"
+app-name = "com.twitter.android"
 enabled = true
 build-mode = "both"
 patches-source = "crimera/piko"
@@ -116,3 +118,4 @@ uptodown-dlurl = "https://twitter.en.uptodown.com/android"
 archive-dlurl = "https://archive.org/download/jhc-apks/apks/com.twitter.android"
 version = "auto"
 dpi = "120-640dpi"
+patcher-args = "-e 'Bring back twitter'"
