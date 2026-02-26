@@ -5,6 +5,7 @@ CWD=$(pwd)
 TEMP_DIR="temp"
 BIN_DIR="bin"
 BUILD_DIR="build"
+FAIL_SUMMARY_FILE="${TEMP_DIR}/failures.log"
 
 if [ "${GITHUB_TOKEN-}" ]; then GH_HEADER="Authorization: token ${GITHUB_TOKEN}"; else GH_HEADER=; fi
 NEXT_VER_CODE=${NEXT_VER_CODE:-$(date +'%Y%m%d')}
@@ -56,6 +57,91 @@ java() {
     fi
 }
 
+reset_fail_reasons() {
+	[ -d "$TEMP_DIR" ] || mkdir -p "$TEMP_DIR"
+	: >"$FAIL_SUMMARY_FILE"
+}
+
+add_fail_reason() {
+	local table=$1 reason=$2
+	[ -n "$table" ] || table="unknown"
+	echo "[$table] $reason" >>"$FAIL_SUMMARY_FILE"
+}
+
+extract_asset_version() {
+	local name=$1
+	grep -oE '[0-9]+([.][0-9]+)+([-.][A-Za-z0-9]+([.][A-Za-z0-9]+)*)?' <<<"$name" | head -1 || :
+}
+
+pick_best_named_candidate() {
+	local context=$1
+	local count=0 parsed_count=0
+	local first_line="" names_list="" ver_rows=""
+	local name url ver
+	while IFS=$'\t' read -r name url; do
+		[ -n "${name:-}" ] || continue
+		count=$((count + 1))
+		if [ -z "$first_line" ]; then first_line="${name}"$'\t'"${url}"; fi
+		if [ -n "$names_list" ]; then names_list+=", "; fi
+		names_list+="$name"
+		ver=$(extract_asset_version "$name")
+		if [ -n "$ver" ]; then
+			parsed_count=$((parsed_count + 1))
+			ver_rows+="${ver}"$'\t'"${name}"$'\t'"${url}"$'\n'
+		fi
+	done
+
+	if [ "$count" -eq 0 ]; then
+		return 1
+	fi
+
+	if [ "$count" -gt 1 ]; then
+		if [ "$parsed_count" -eq 0 ]; then
+			wpr "More than 1 asset was found for ${context}; no parseable version found, falling back to the first one. Candidates: ${names_list}"
+			echo "$first_line"
+			return 0
+		fi
+		local best_ver selected
+		best_ver=$(cut -f1 <<<"$ver_rows" | get_highest_ver)
+		selected=$(awk -F'\t' -v bv="$best_ver" '$1 == bv { print $2 "\t" $3; exit }' <<<"$ver_rows")
+		if [ -n "$selected" ]; then
+			wpr "More than 1 asset was found for ${context}; selected highest version '${best_ver}'. Candidates: ${names_list}"
+			echo "$selected"
+			return 0
+		fi
+	fi
+
+	echo "$first_line"
+}
+
+get_release_asset_candidates() {
+	local resp=$1 tag=$2 ver=$3
+	local candidates
+
+	if [ "$tag" = "CLI" ]; then
+		candidates=$(jq -r '.assets[]? | select(.name | endswith("asc") | not) | select(.name | test("-all\\.jar$")) | [.name, .url] | @tsv' <<<"$resp")
+		if [ "$ver" = "latest" ] && [ -n "$candidates" ]; then
+			local non_dev
+			non_dev=$(grep -v -- '-dev' <<<"$candidates" || :)
+			if [ -n "$non_dev" ]; then candidates=$non_dev; fi
+		fi
+	elif [ "$tag" = "Patches" ]; then
+		candidates=$(jq -r '.assets[]? | select(.name | endswith(".rvp")) | [.name, .url] | @tsv' <<<"$resp")
+	else
+		abort "unknown prebuilt tag '$tag'"
+	fi
+
+	if [ -n "$candidates" ]; then
+		echo "$candidates"
+		return 0
+	fi
+
+	local all_assets
+	all_assets=$(jq -r '.assets[]? | select(.name | endswith("asc") | not) | .name' <<<"$resp" | paste -sd ', ' -)
+	if [ -z "$all_assets" ]; then all_assets="(none)"; fi
+	abort "No matching ${tag} asset was found. Available assets: ${all_assets}"
+}
+
 get_prebuilts() {
 	local cli_src=$1 cli_ver=$2 patches_src=$3 patches_ver=$4
 	pr "Getting prebuilts (${patches_src%/*})" >&2
@@ -96,18 +182,13 @@ get_prebuilts() {
 		local url file tag_name name
 		file=$(find "$dir" -name "*${fprefix}-${name_ver#v}.*" -type f 2>/dev/null)
 		if [ -z "$file" ]; then
-			local resp asset name
+			local resp candidates asset_line
 			resp=$(gh_req "$rv_rel" -) || return 1
 			tag_name=$(jq -r '.tag_name' <<<"$resp")
-			matches=$(jq -e '.assets | map(select(.name | endswith("asc") | not))' <<<"$resp")
-			if [ "$(jq 'length' <<<"$matches")" -eq 0 ]; then
-				abort "No asset was found"
-			elif [ "$(jq 'length' <<<"$matches")" -ne 1 ]; then
-				wpr "More than 1 asset was found for this cli release. Falling back to the first one found..."
-			fi
-			asset=$(jq -r ".[0]" <<<"$matches")
-			url=$(jq -r .url <<<"$asset")
-			name=$(jq -r .name <<<"$asset")
+			candidates=$(get_release_asset_candidates "$resp" "$tag" "$ver")
+			asset_line=$(pick_best_named_candidate "${src} (${tag} ${tag_name})" <<<"$candidates") || return 1
+			name=$(cut -f1 <<<"$asset_line")
+			url=$(cut -f2 <<<"$asset_line")
 			file="${dir}/${name}"
 			gh_dl "$file" "$url" >&2 || return 1
 			echo "$tag: $(cut -d/ -f1 <<<"$src")/${name}  " >>"${cl_dir}/changelog.md"
@@ -115,9 +196,18 @@ get_prebuilts() {
 			grab_cl=false
 			local for_err=$file
 			if [ "$ver" = "latest" ]; then
-				file=$(grep -v '/[^/]*dev[^/]*$' <<<"$file" | head -1)
+				local non_dev_files
+				non_dev_files=$(grep -v '/[^/]*dev[^/]*$' <<<"$file" || :)
+				if [ -n "$non_dev_files" ]; then file=$non_dev_files; fi
 			else file=$(grep "/[^/]*${ver#v}[^/]*\$" <<<"$file" | head -1); fi
 			if [ -z "$file" ]; then abort "filter fail: '$for_err' with '$ver'"; fi
+			local cached_candidates="" fpath fname
+			while IFS= read -r fpath; do
+				[ -n "$fpath" ] || continue
+				fname=$(basename "$fpath")
+				cached_candidates+="${fname}"$'\t'"${fpath}"$'\n'
+			done <<<"$file"
+			file=$(pick_best_named_candidate "${src} cached ${tag}" <<<"$cached_candidates" | cut -f2)
 			name=$(basename "$file")
 			tag_name=$(cut -d'-' -f3- <<<"$name")
 			tag_name=v${tag_name%.*}
@@ -126,20 +216,40 @@ get_prebuilts() {
 		if [ "$tag" = "Patches" ]; then
 			if [ $grab_cl = true ]; then echo -e "[Changelog](https://github.com/${src}/releases/tag/${tag_name})\n" >>"${cl_dir}/changelog.md"; fi
 			if [ "$REMOVE_RV_INTEGRATIONS_CHECKS" = true ]; then
-				local extensions_ext
-				extensions_ext=$(unzip -l "${file}" "extensions/shared*" | grep -o "shared.*") extensions_ext="${extensions_ext#*.}"
-				if ! (
-					mkdir -p "${file}-zip" || return 1
-					unzip -qo "${file}" -d "${file}-zip" || return 1
-					java -cp "${BIN_DIR}/paccer.jar:${BIN_DIR}/dexlib2.jar" com.jhc.Main "${file}-zip/extensions/shared.${extensions_ext}" "${file}-zip/extensions/shared-patched.${extensions_ext}" || return 1
-					mv -f "${file}-zip/extensions/shared-patched.${extensions_ext}" "${file}-zip/extensions/shared.${extensions_ext}" || return 1
-					rm "${file}" || return 1
-					cd "${file}-zip" || abort
-					zip -0rq "${CWD}/${file}" . || return 1
-				) >&2; then
-					echo >&2 "Patching revanced-integrations failed"
+				local shared_entry work_dir shared_file shared_patched extensions_ext tmp_file patch_op
+				shared_entry=$(unzip -Z1 "${file}" "extensions/shared.*" 2>/dev/null | head -1 || :)
+				if [ -z "$shared_entry" ]; then
+					wpr "Patching revanced-integrations skipped for '${name}': no extensions/shared.* found"
+				else
+					work_dir="${file}-zip"
+					rm -rf "$work_dir"
+					if ! mkdir -p "$work_dir" || ! unzip -qo "${file}" -d "$work_dir"; then
+						wpr "Patching revanced-integrations failed for '${name}': could not prepare temporary archive"
+						rm -rf "$work_dir" || :
+					else
+						extensions_ext="${shared_entry##*.}"
+						shared_file="${work_dir}/${shared_entry}"
+						shared_patched="${work_dir}/extensions/shared-patched.${extensions_ext}"
+						if ! patch_op=$(java -cp "${BIN_DIR}/paccer.jar:${BIN_DIR}/dexlib2.jar" com.jhc.Main "$shared_file" "$shared_patched" 2>&1); then
+							patch_op=$(tail -n 1 <<<"$patch_op")
+							[ -n "$patch_op" ] || patch_op="unknown error"
+							wpr "Patching revanced-integrations failed for '${name}': ${patch_op}"
+						elif [ ! -f "$shared_patched" ]; then
+							wpr "Patching revanced-integrations failed for '${name}': patched shared file was not generated"
+						elif ! mv -f "$shared_patched" "$shared_file"; then
+							wpr "Patching revanced-integrations failed for '${name}': could not replace shared extension"
+						else
+							tmp_file="${file}.tmp"
+							if (cd "$work_dir" && zip -0rq "${CWD}/${tmp_file}" .); then
+								mv -f "$tmp_file" "$file"
+							else
+								rm -f "$tmp_file" || :
+								wpr "Patching revanced-integrations failed for '${name}': could not re-pack archive"
+							fi
+						fi
+						rm -rf "$work_dir" || :
+					fi
 				fi
-				rm -r "${file}-zip" || :
 			fi
 		fi
 		echo -n "$file "
@@ -541,6 +651,7 @@ build_rv() {
 	if [ -z "$pkg_name" ]; then
 		local tried_list="${tried_dl[*]:-none}"
 		epr "ERROR: Could not find package name for ${table} from any source (tried: ${tried_list}). Check your download URLs."
+		add_fail_reason "$table" "Could not resolve package name from download sources (tried: ${tried_list})"
 		return 0
 	fi
 	local list_patches
@@ -566,6 +677,7 @@ build_rv() {
 	fi
 	if [ -z "$version" ]; then
 		epr "empty version, not building ${table}."
+		add_fail_reason "$table" "Resolved version is empty after patches/source negotiation"
 		return 0
 	fi
 
@@ -603,27 +715,32 @@ build_rv() {
 			fi
 			break
 		done
-		if [ ! -f "$stock_apk" ]; then return 0; fi
+		if [ ! -f "$stock_apk" ]; then
+			add_fail_reason "$table" "Could not download stock APK from configured sources for version '${version}', arch '${arch}', dpi '${dpi}'"
+			return 0
+		fi
 	fi
 	if [ ! -f "${stock_apk}.apkm" ] && ! OP=$(check_sig "$stock_apk" "$pkg_name" 2>&1) && ! grep -qFx "ERROR: Missing META-INF/MANIFEST.MF" <<<"$OP"; then
 		epr "$pkg_name not building, apk signature mismatch '$stock_apk': $OP"
+		add_fail_reason "$table" "APK signature mismatch for '${stock_apk}': $OP"
 		return 0
 	fi
 	log "${table}: ${version}"
 
 	local microg_patch
 	microg_patch=$(grep "^Name: " <<<"$list_patches" | grep -i "gmscore\|microg" || :) microg_patch=${microg_patch#*: }
-	if [ -n "$microg_patch" ] && [[ ${p_patcher_args[*]} =~ $microg_patch ]]; then
+	local p_args_joined="${p_patcher_args[*]-}"
+	if [ -n "$microg_patch" ] && [[ $p_args_joined =~ $microg_patch ]]; then
 		epr "You cant include/exclude microg patch as that's done by rvmm builder automatically."
 		p_patcher_args=("${p_patcher_args[@]//-[ei] ${microg_patch}/}")
 	fi
 
-	local patcher_args patched_apk build_mode
+	local patch_args=() patched_apk build_mode
 	local rv_brand_f=$(echo "$rv_brand" | tr '[:upper:]' '[:lower:]')
 	rv_brand_f=${rv_brand_f// /-}
-	if [ "$patcher_args" ]; then p_patcher_args+=("$patcher_args"); fi
+	if [ "${patcher_args-}" ]; then p_patcher_args+=("$patcher_args"); fi
 	for build_mode in "${build_mode_arr[@]}"; do
-		patcher_args=("${p_patcher_args[@]}")
+		patch_args=("${p_patcher_args[@]-}")
 		pr "Building '${table}' in '$build_mode' mode"
 		if [ -n "$microg_patch" ]; then
 			patched_apk="${TEMP_DIR}/${app_name_l}-${rv_brand_f}-${version_f}-${arch_f}-${build_mode}.apk"
@@ -632,9 +749,9 @@ build_rv() {
 		fi
 		if [ -n "$microg_patch" ]; then
 			if [ "$build_mode" = apk ]; then
-				patcher_args+=("-e \"${microg_patch}\"")
+				patch_args+=("-e \"${microg_patch}\"")
 			elif [ "$build_mode" = module ]; then
-				patcher_args+=("-d \"${microg_patch}\"")
+				patch_args+=("-d \"${microg_patch}\"")
 			fi
 		fi
 
@@ -656,8 +773,9 @@ build_rv() {
 			fi
 		fi
 		if [ "${NORB:-}" != true ] || [ ! -f "$patched_apk" ]; then
-			if ! patch_apk "$stock_apk_to_patch" "$patched_apk" "${patcher_args[*]}" "$cli_jar" "$patches_jar"; then
+			if ! patch_apk "$stock_apk_to_patch" "$patched_apk" "${patch_args[*]}" "$cli_jar" "$patches_jar"; then
 				epr "Building '${table}' failed!"
+				add_fail_reason "$table" "Patching/build step failed in mode '${build_mode}' for version '${version}'"
 				return 0
 			fi
 		fi
