@@ -38,6 +38,7 @@ DEF_CLI_SRC=$(toml_get "$main_config_t" cli-source) || DEF_CLI_SRC="ReVanced/rev
 DEF_RV_BRAND=$(toml_get "$main_config_t" rv-brand) || DEF_RV_BRAND="ReVanced"
 DEF_DPI_LIST=$(toml_get "$main_config_t" dpi) || DEF_DPI_LIST="nodpi anydpi"
 mkdir -p "$TEMP_DIR" "$BUILD_DIR"
+reset_fail_reasons
 
 if [ "${2-}" = "--config-update" ]; then
 	config_update
@@ -175,7 +176,16 @@ for table_name in $(toml_get_table_names); do
 done
 wait
 rm -rf temp/tmp.*
-if [ -z "$(ls -A1 "${BUILD_DIR}")" ]; then abort "All builds failed."; fi
+if [ -z "$(ls -A1 "${BUILD_DIR}")" ]; then
+	if [ -s "$FAIL_SUMMARY_FILE" ]; then
+		epr "Build failure summary:"
+		while IFS= read -r failure_line; do
+			[ -n "$failure_line" ] || continue
+			epr "  ${failure_line}"
+		done <"$FAIL_SUMMARY_FILE"
+	fi
+	abort "All builds failed."
+fi
 
 log "\nInstall [Microg](https://github.com/ReVanced/GmsCore/releases) for non-root YouTube and YT Music APKs"
 log "Use [zygisk-detach](https://github.com/j-hc/zygisk-detach) to detach YouTube and YT Music modules from Play Store"
