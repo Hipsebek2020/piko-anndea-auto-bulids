@@ -1,5 +1,10 @@
 parallel-jobs = 2
 remove-rv-integrations-checks = false
+debug = true
+
+[default]
+patcher-args = ["--experimental"]
+cli-args = []
 
 # ==================== YouTube RVX (anddea) - spoof pod VLC ====================
 [YouTube-RVX]
@@ -29,8 +34,8 @@ patches-source = "crimera/piko"
 cli-source = "MorpheApp/morphe-cli"
 integrations-source = ""
 
-included-patches = "'Dynamic color'"
-excluded-patches = "'Bring back twitter'"
+included-patches = ["'Dynamic color'"]
+excluded-patches = ["'Bring back twitter'"]
 
 apkmirror-dlurl = "https://www.apkmirror.com/apk/x-corp/twitter/"
 archive-dlurl = "https://archive.org/download/geologically/apks/com.twitter.android"

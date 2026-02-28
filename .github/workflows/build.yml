@@ -75,7 +75,7 @@ jobs:
 
       - name: Build YouTube
         if: steps.release_check.outputs.exists == 'false'
-        run: if [ -f "config.json" ]; then ./build.sh config.json; else ./build.sh config.toml; fi
+        run: if [ -f "config.json" ]; then ./build.sh config.json --verbose; else ./build.sh config.toml --verbose; fi
 
       - name: Download Changelog
         if: steps.release_check.outputs.exists == 'false'
@@ -125,7 +125,7 @@ jobs:
 
       - name: Build Piko X
         if: steps.release_check.outputs.exists == 'false'
-        run: if [ -f "config.json" ]; then ./build.sh config.json; else ./build.sh config.toml; fi
+        run: if [ -f "config.json" ]; then ./build.sh config.json --verbose; else ./build.sh config.toml --verbose; fi
 
       - name: Download Changelog
         if: steps.release_check.outputs.exists == 'false'
