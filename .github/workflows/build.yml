@@ -1,7 +1,7 @@
 name: Build YouTube & Piko X (Twitter)
 on:
   schedule:
-    - cron: '0 * * * *'
+    - cron: "0 * * * *"
   workflow_dispatch:
 
 jobs:
@@ -70,8 +70,8 @@ jobs:
         if: steps.release_check.outputs.exists == 'false'
         uses: actions/setup-java@v4
         with:
-          java-version: '17'
-          distribution: 'temurin'
+          java-version: "17"
+          distribution: "temurin"
 
       - name: Build YouTube
         if: steps.release_check.outputs.exists == 'false'
@@ -132,8 +132,8 @@ jobs:
         if: steps.release_check.outputs.exists == 'false'
         uses: actions/setup-java@v4
         with:
-          java-version: '17'
-          distribution: 'temurin'
+          java-version: "17"
+          distribution: "temurin"
 
       - name: Build Piko X
         if: steps.release_check.outputs.exists == 'false'
