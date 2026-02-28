@@ -1,173 +1,169 @@
-name: Build Modules
+name: Build YouTube & Piko X (Twitter)
 on:
-  workflow_call:
-    inputs:
-      from_ci:
-        type: boolean
-        required: false
-        default: true
-
+  schedule:
+    - cron: '0 * * * *'
   workflow_dispatch:
 
 jobs:
-  run:
-    permissions: write-all
+  check-updates:
     runs-on: ubuntu-latest
+    outputs:
+      should_build: ${{ steps.check.outputs.should_build }}
+      version_tag: ${{ steps.check.outputs.version_tag }}
     steps:
-      - uses: actions/setup-java@v4
-        with:
-          distribution: "zulu"
-          java-version: "17"
-
-      - name: Checkout
+      - name: Checkout Repository
         uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-          submodules: true
 
-      - name: Update config
-        if: ${{ inputs.from_ci }}
-        run: |
-          if git checkout origin/update build.md; then
-            UPDATE_CFG=$(./build.sh config.toml --config-update)
-            if [ "$UPDATE_CFG" ]; then
-              echo "$UPDATE_CFG" > config.json
-            fi
-          fi
-
-      - name: Install CLI dependencies
-        run: |
-          set -euo pipefail
-          sudo apt-get update
-          # basic tools (usually preinstalled, but ensure)
-          sudo apt-get install -y curl jq zip unzip
-
-          # install yq (TOML/JSON handling) if missing
-          if ! command -v yq >/dev/null 2>&1; then
-            YQ_URL="https://github.com/mikefarah/yq/releases/latest/download/yq_linux_amd64"
-            sudo curl -L "$YQ_URL" -o /usr/local/bin/yq
-            sudo chmod +x /usr/local/bin/yq
-          fi
-
-          # install htmlq (HTML parser used by utils.sh) if missing
-          if ! command -v htmlq >/dev/null 2>&1; then
-            HTMLQ_URL="https://github.com/mgdm/htmlq/releases/latest/download/htmlq-x86_64-linux"
-            sudo curl -L "$HTMLQ_URL" -o /usr/local/bin/htmlq
-            sudo chmod +x /usr/local/bin/htmlq
-          fi
-
-      - name: Get next version code
-        id: next_ver_code
+      - name: Check for Updates
+        id: check
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          TAG=$(gh release list -L 1 | awk -F '\t' '{print $3}')
-          if [ -z "$TAG" ]; then TAG=0; fi
-          echo "NEXT_VER_CODE=$((TAG + 1))" >> $GITHUB_OUTPUT
+          REMOTE_TAG=$(curl -s https://api.github.com/repos/anddea/revanced-patches/releases/latest | jq -r .tag_name)
+          LOCAL_YT=$(gh release list --limit 10 | grep "YouTube-" | head -n 1 | awk '{print $3}' | sed 's/YouTube-//' || echo "")
+          LOCAL_PX=$(gh release list --limit 10 | grep "PikoX-" | head -n 1 | awk '{print $3}' | sed 's/PikoX-//' || echo "")
+          echo "Remote: $REMOTE_TAG | Local YT: $LOCAL_YT | Local PX: $LOCAL_PX"
+          if [ "$REMOTE_TAG" != "null" ] && [ "$REMOTE_TAG" != "" ]; then
+            if [ "$REMOTE_TAG" != "$LOCAL_YT" ] || [ "$REMOTE_TAG" != "$LOCAL_PX" ]; then
+              echo "should_build=true" >> $GITHUB_OUTPUT
+              echo "version_tag=$REMOTE_TAG" >> $GITHUB_OUTPUT
+              gh release view "$REMOTE_TAG" --repo anddea/revanced-patches \
+                --json body --template '{{.body}}' > changelog.txt || \
+                echo "No changelog available" > changelog.txt
+            else
+              echo "should_build=false" >> $GITHUB_OUTPUT
+            fi
+          else
+            echo "should_build=false" >> $GITHUB_OUTPUT
+          fi
 
-      - name: Build modules/APKs
-        run: if [ -f "config.json" ]; then ./build.sh config.json; else ./build.sh config.toml; fi
+      - name: Upload Changelog
+        if: steps.check.outputs.should_build == 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: changelog
+          path: changelog.txt
+
+  build-youtube:
+    needs: check-updates
+    if: needs.check-updates.outputs.should_build == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Check if YouTube Release Exists
+        id: release_check
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          if gh release view "YouTube-${{ needs.check-updates.outputs.version_tag }}" &>/dev/null; then
+            echo "exists=true" >> $GITHUB_OUTPUT
+          else
+            echo "exists=false" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Set up JDK 17
+        if: steps.release_check.outputs.exists == 'false'
+        uses: actions/setup-java@v4
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+
+      - name: Build YouTube
+        if: steps.release_check.outputs.exists == 'false'
+        run: |
+          rm -rf github-builds
+          npm install -g https://github.com/decipher3114/revanced-creator.git
+          revanced-creator build \
+            --patches-source anddea/revanced-patches \
+            --integrations-source anddea/revanced-integrations \
+            --app com.google.android.youtube \
+            --exclude-patch material-you \
+            --output github-builds
+          if ! ls github-builds/*.apk 1>/dev/null 2>&1; then
+            echo "Błąd: Nie wygenerowano APK dla YouTube"
+            exit 1
+          fi
+
+      - name: Download Changelog
+        if: steps.release_check.outputs.exists == 'false'
+        uses: actions/download-artifact@v4
+        with:
+          name: changelog
+
+      - name: Create YouTube Release
+        if: steps.release_check.outputs.exists == 'false'
+        uses: softprops/action-gh-release@v1
+        with:
+          files: github-builds/*.apk
+          tag_name: YouTube-${{ needs.check-updates.outputs.version_tag }}
+          name: YouTube anddea ${{ needs.check-updates.outputs.version_tag }}
+          body_path: changelog.txt
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          GITHUB_REPOSITORY: $GITHUB_REPOSITORY
-          NEXT_VER_CODE: ${{ steps.next_ver_code.outputs.NEXT_VER_CODE }}
 
-      - name: Get output
-        id: get_output
-        run: |
-          DELIM="$(openssl rand -hex 8)"
-          echo "BUILD_LOG<<${DELIM}" >> "$GITHUB_OUTPUT"
-          cat build.md >> "$GITHUB_OUTPUT"
-          echo "${DELIM}" >> "$GITHUB_OUTPUT"
-          cp -f build.md build.tmp
+  build-piko-x:
+    needs: check-updates
+    if: needs.check-updates.outputs.should_build == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
 
-      - name: Improve changelog
-        run: |
-          echo -e "\n### Recent Changes\n" >> build.md
-          git log -n 5 --oneline >> build.md
-
-      - name: Upload modules to release
-        uses: svenstaro/upload-release-action@v2
-        with:
-          body: ${{ steps.get_output.outputs.BUILD_LOG }}
-          repo_token: ${{ secrets.GITHUB_TOKEN }}
-          file: ./build/*
-          release_name: ReVanced
-          tag: ${{ steps.next_ver_code.outputs.NEXT_VER_CODE }}
-          file_glob: true
-          overwrite: true
-
-      - name: Update changelog and update json
-        id: update_config
-        run: |
-          git checkout -f update || git switch --discard-changes --orphan update
-          cp -f build.tmp build.md
-          get_update_json() {
-            echo "{
-            \"version\": \"$1\",
-            \"versionCode\": ${{ steps.next_ver_code.outputs.NEXT_VER_CODE }},
-            \"zipUrl\": \"$2\",
-            \"changelog\": \"https://raw.githubusercontent.com/$GITHUB_REPOSITORY/update/build.md\"
-          }"
-          }
-
-          cd build || { echo "build folder not found"; exit 1; }
-          for OUTPUT in *module*.zip; do
-            [ "$OUTPUT" = "*module*.zip" ] && continue
-            ZIP_S=$(unzip -p "$OUTPUT" module.prop)
-            if ! UPDATE_JSON=$(echo "$ZIP_S" | grep updateJson); then continue; fi
-            UPDATE_JSON="${UPDATE_JSON##*/}"
-            VER=$(echo "$ZIP_S" | grep version=)
-            VER="${VER##*=}"
-            DLURL="$GITHUB_SERVER_URL/$GITHUB_REPOSITORY/releases/download/${{ steps.next_ver_code.outputs.NEXT_VER_CODE }}/${OUTPUT}"
-            get_update_json "$VER" "$DLURL" >"../$UPDATE_JSON"
-          done
-          cd ..
-
-          find . -name "*-update.json" | grep . || : >dummy-update.json
-
-      - uses: stefanzweifel/git-auto-commit-action@v5
-        with:
-          branch: update
-          skip_checkout: true
-          file_pattern: build.md *-update.json
-          commit_message: Bump version ${{ steps.next_ver_code.outputs.NEXT_VER_CODE }}
-
-      - name: Report to Telegram
+      - name: Check if PikoX Release Exists
+        id: release_check
         env:
-          TG_TOKEN: ${{ secrets.TG_TOKEN }}
-        if: env.TG_TOKEN != null
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          cd build || { echo "build folder not found"; exit 1; }
+          if gh release view "PikoX-${{ needs.check-updates.outputs.version_tag }}" &>/dev/null; then
+            echo "exists=true" >> $GITHUB_OUTPUT
+          else
+            echo "exists=false" >> $GITHUB_OUTPUT
+          fi
 
-          TG_CHAT="@rvc_magisk"
-          NL=$'\n'
-          APKS=""
-          MODULES=""
-          for OUTPUT in *; do
-            DL_URL="$GITHUB_SERVER_URL/$GITHUB_REPOSITORY/releases/download/${{ steps.next_ver_code.outputs.NEXT_VER_CODE }}/${OUTPUT}"
-            if [[ $OUTPUT = *.apk ]]; then
-              APKS+="${NL}📦[${OUTPUT}](${DL_URL})"
-            elif [[ $OUTPUT = *.zip ]]; then
-              MODULES+="${NL}📦[${OUTPUT}](${DL_URL})"
-            fi
-          done
-          MODULES=${MODULES#"$NL"}
-          APKS=${APKS#"$NL"}
+      - name: Set up JDK 17
+        if: steps.release_check.outputs.exists == 'false'
+        uses: actions/setup-java@v4
+        with:
+          java-version: '17'
+          distribution: 'temurin'
 
-          BODY="$(sed 's/^\* \*\*/↪ \*\*/g; s/^\* `/↪ \*\*/g; s/`/\*/g; s/^\* /\↪/g; s/\*\*/\*/g; s/###//g; s/^- /↪ /g; /^==/d;' ../build.md)"
-          MSG="*New build!*
+      - name: Build Piko X
+        if: steps.release_check.outputs.exists == 'false'
+        run: |
+          rm -rf github-builds
+          npm install -g https://github.com/decipher3114/revanced-creator.git
+          revanced-creator build \
+            --patches-source anddea/revanced-patches \
+            --integrations-source anddea/revanced-integrations \
+            --app com.twitter.android \
+            --exclude-patch custom-branding \
+            --output github-builds
+          if ! ls github-builds/*.apk 1>/dev/null 2>&1; then
+            echo "Błąd: Nie wygenerowano APK dla Piko X"
+            exit 1
+          fi
 
-          ${BODY}
+      - name: Download Changelog
+        if: steps.release_check.outputs.exists == 'false'
+        uses: actions/download-artifact@v4
+        with:
+          name: changelog
 
-          *▼ Download Links:*
-          Modules:
-          ${MODULES}
-
-          APKs:
-          ${APKS}
-          "
-          echo "'$MSG'"
-          MSG=${MSG:0:9450}
-          POST="https://api.telegram.org/bot${TG_TOKEN}/sendMessage"
-          curl -X POST --data-urlencode "parse_mode=Markdown" --data-urlencode "disable_web_page_preview=true" --data-urlencode "text=${MSG}" --data-urlencode "chat_id=${TG_CHAT}" "$POST"
+      - name: Create Piko X Release
+        if: steps.release_check.outputs.exists == 'false'
+        uses: softprops/action-gh-release@v1
+        with:
+          files: github-builds/*.apk
+          tag_name: PikoX-${{ needs.check-updates.outputs.version_tag }}
+          name: Piko X (Twitter) anddea ${{ needs.check-updates.outputs.version_tag }}
+          body_path: changelog.txt
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
