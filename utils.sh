@@ -24,7 +24,7 @@ toml_get_table_main() { jq -r -e 'to_entries | map(select(.value | type != "obje
 toml_get_table() { jq -r -e ".\"${1}\"" <<<"$__TOML__"; }
 toml_get() {
 	local op quote_placeholder=$'\001'
-	op=$(jq -r ".\"${2}\" | values" <<<"$1")
+	op=$(jq -r ".\"${2}\" | if type == \"array\" then join(\" \") else values end" <<<"$1")
 	if [ "$op" ]; then
 		op="${op#"${op%%[![:space:]]*}"}"
 		op="${op%"${op##*[![:space:]]}"}"
