@@ -1,9 +1,10 @@
 parallel-jobs = 2
+remove-rv-integrations-checks = false
 
 # ==================== YouTube RVX (anddea) - spoof pod VLC ====================
 [YouTube-RVX]
 app-name = "YouTube RVX"
-package-name = "org.videolan.vlc"          # ← spoof VLC
+package-name = "org.videolan.vlc"
 enabled = true
 build-mode = "both"
 version = "auto"
@@ -28,8 +29,8 @@ patches-source = "crimera/piko"
 cli-source = "MorpheApp/morphe-cli"
 integrations-source = ""
 
-included-patches = "'Dynamic color'"           # ← włącza Material You
-excluded-patches = "'Bring back twitter'"      # ← blokuje zmianę nazwy na Twitter
+included-patches = "'Dynamic color'"
+excluded-patches = "'Bring back twitter'"
 
 apkmirror-dlurl = "https://www.apkmirror.com/apk/x-corp/twitter/"
 archive-dlurl = "https://archive.org/download/geologically/apks/com.twitter.android"

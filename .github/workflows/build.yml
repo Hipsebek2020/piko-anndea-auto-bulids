@@ -75,19 +75,7 @@ jobs:
 
       - name: Build YouTube
         if: steps.release_check.outputs.exists == 'false'
-        run: |
-          rm -rf github-builds
-          npm install -g https://github.com/decipher3114/revanced-creator.git
-          revanced-creator build \
-            --patches-source anddea/revanced-patches \
-            --integrations-source anddea/revanced-integrations \
-            --app com.google.android.youtube \
-            --exclude-patch material-you \
-            --output github-builds
-          if ! ls github-builds/*.apk 1>/dev/null 2>&1; then
-            echo "Błąd: Nie wygenerowano APK dla YouTube"
-            exit 1
-          fi
+        run: if [ -f "config.json" ]; then ./build.sh config.json; else ./build.sh config.toml; fi
 
       - name: Download Changelog
         if: steps.release_check.outputs.exists == 'false'
@@ -99,7 +87,7 @@ jobs:
         if: steps.release_check.outputs.exists == 'false'
         uses: softprops/action-gh-release@v1
         with:
-          files: github-builds/*.apk
+          files: build/*YouTube*.apk
           tag_name: YouTube-${{ needs.check-updates.outputs.version_tag }}
           name: YouTube anddea ${{ needs.check-updates.outputs.version_tag }}
           body_path: changelog.txt
@@ -137,19 +125,7 @@ jobs:
 
       - name: Build Piko X
         if: steps.release_check.outputs.exists == 'false'
-        run: |
-          rm -rf github-builds
-          npm install -g https://github.com/decipher3114/revanced-creator.git
-          revanced-creator build \
-            --patches-source anddea/revanced-patches \
-            --integrations-source anddea/revanced-integrations \
-            --app com.twitter.android \
-            --exclude-patch custom-branding \
-            --output github-builds
-          if ! ls github-builds/*.apk 1>/dev/null 2>&1; then
-            echo "Błąd: Nie wygenerowano APK dla Piko X"
-            exit 1
-          fi
+        run: if [ -f "config.json" ]; then ./build.sh config.json; else ./build.sh config.toml; fi
 
       - name: Download Changelog
         if: steps.release_check.outputs.exists == 'false'
@@ -161,7 +137,7 @@ jobs:
         if: steps.release_check.outputs.exists == 'false'
         uses: softprops/action-gh-release@v1
         with:
-          files: github-builds/*.apk
+          files: build/*Piko*.apk
           tag_name: PikoX-${{ needs.check-updates.outputs.version_tag }}
           name: Piko X (Twitter) anddea ${{ needs.check-updates.outputs.version_tag }}
           body_path: changelog.txt
