@@ -67,23 +67,20 @@ jobs:
           fi
 
       - name: Set up JDK 17
-        if: steps.release_check.outputs.exists == 'false'
         uses: actions/setup-java@v4
         with:
           java-version: "17"
           distribution: "temurin"
 
       - name: Build YouTube
-        if: steps.release_check.outputs.exists == 'false'
         run: if [ -f "config.json" ]; then ./build.sh config.json --verbose; else ./build.sh config.toml --verbose; fi
 
       - name: Download Changelog
-        if: steps.release_check.outputs.exists == 'false'
         uses: actions/download-artifact@v4
         with:
           name: changelog
 
-      - name: Create YouTube Release
+      - name: Create or Update YouTube Release
         if: steps.release_check.outputs.exists == 'false'
         uses: softprops/action-gh-release@v1
         with:
@@ -93,6 +90,22 @@ jobs:
           body_path: changelog.txt
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Update Existing YouTube Release
+        if: steps.release_check.outputs.exists == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          # Delete existing assets
+          gh release view "YouTube-${{ needs.check-updates.outputs.version_tag }}" --json assets --jq '.assets[].name' | grep -E '\.apk$' | while read asset; do
+            gh release delete-asset "YouTube-${{ needs.check-updates.outputs.version_tag }}" "$asset" --yes
+          done
+          # Upload new APKs
+          for apk in build/*YouTube*.apk; do
+            if [ -f "$apk" ]; then
+              gh release upload "YouTube-${{ needs.check-updates.outputs.version_tag }}" "$apk"
+            fi
+          done
 
   build-piko-x:
     needs: check-updates
@@ -117,23 +130,20 @@ jobs:
           fi
 
       - name: Set up JDK 17
-        if: steps.release_check.outputs.exists == 'false'
         uses: actions/setup-java@v4
         with:
           java-version: "17"
           distribution: "temurin"
 
       - name: Build Piko X
-        if: steps.release_check.outputs.exists == 'false'
         run: if [ -f "config.json" ]; then ./build.sh config.json --verbose; else ./build.sh config.toml --verbose; fi
 
       - name: Download Changelog
-        if: steps.release_check.outputs.exists == 'false'
         uses: actions/download-artifact@v4
         with:
           name: changelog
 
-      - name: Create Piko X Release
+      - name: Create or Update Piko X Release
         if: steps.release_check.outputs.exists == 'false'
         uses: softprops/action-gh-release@v1
         with:
@@ -143,3 +153,19 @@ jobs:
           body_path: changelog.txt
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Update Existing Piko X Release
+        if: steps.release_check.outputs.exists == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          # Delete existing assets
+          gh release view "PikoX-${{ needs.check-updates.outputs.version_tag }}" --json assets --jq '.assets[].name' | grep -E '\.apk$' | while read asset; do
+            gh release delete-asset "PikoX-${{ needs.check-updates.outputs.version_tag }}" "$asset" --yes
+          done
+          # Upload new APKs
+          for apk in build/*Piko*.apk; do
+            if [ -f "$apk" ]; then
+              gh release upload "PikoX-${{ needs.check-updates.outputs.version_tag }}" "$apk"
+            fi
+          done
