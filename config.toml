@@ -1,43 +1,36 @@
 parallel-jobs = 2
-remove-rv-integrations-checks = false
+remove-rv-integrations-checks = true
 debug = true
 
 [default]
-patcher-args = ["--experimental"]
+cli-source = "inotia00/revanced-cli"
 cli-args = []
 
-# ==================== YouTube RVX (anddea) - spoof pod VLC ====================
-[YouTube-RVX]
-app-name = "YouTube RVX"
-package-name = "org.videolan.vlc"
+# ==================== YouTube RVX (anddea) ====================
+[youtube-anddea]
+app-name = "com.google.android.youtube"
 enabled = true
 build-mode = "both"
 version = "auto"
 
 patches-source = "anddea/revanced-patches"
-cli-source = "MorpheApp/morphe-cli"
 integrations-source = ""
 
-apkmirror-dlurl = "https://apkmirror.com/apk/google-inc/youtube"
-archive-dlurl = "https://archive.org/download/geologically/apks/com.google.android.youtube"
-uptodown-dlurl = "https://youtube.en.uptodown.com/android"
+patcher-args = ""
 
-# ==================== X (Piko) - Material You + zostaje X ====================
-[X-Piko]
-app-name = "X (Piko)"
-package-name = "com.twitter.android"
+archive-dlurl = "https://archive.org/download/geologically/apks/com.google.android.youtube"
+
+# ==================== X / Twitter (Piko) ====================
+[twitter-piko]
+app-name = "com.twitter.android"
 enabled = true
 build-mode = "apk"
 version = "auto"
 
 patches-source = "crimera/piko"
-cli-source = "MorpheApp/morphe-cli"
 integrations-source = ""
 
-included-patches = ["'Dynamic color'"]
-excluded-patches = ["'Bring back twitter'"]
+patcher-args = "-e 'Bring back twitter'"
 
-apkmirror-dlurl = "https://www.apkmirror.com/apk/x-corp/twitter/"
 archive-dlurl = "https://archive.org/download/geologically/apks/com.twitter.android"
-uptodown-dlurl = "https://twitter.en.uptodown.com/android"
 dpi = "120-640dpi"
