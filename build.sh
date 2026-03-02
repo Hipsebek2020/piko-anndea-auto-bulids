@@ -182,6 +182,12 @@ for table_name in $(toml_get_table_names); do
 done
 wait
 rm -rf temp/tmp.*
+
+# Fallback: Move any remaining APK files from temp to build
+if [ -d "$TEMP_DIR" ]; then
+    find "$TEMP_DIR" -name "*.apk" -type f -exec mv {} "$BUILD_DIR/" \; 2>/dev/null || :
+fi
+
 if [ -z "$(ls -A1 "${BUILD_DIR}")" ]; then
 	if [ -s "$FAIL_SUMMARY_FILE" ]; then
 		epr "Build failure summary:"

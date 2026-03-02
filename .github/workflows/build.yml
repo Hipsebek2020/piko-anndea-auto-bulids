@@ -74,7 +74,12 @@ jobs:
           distribution: "temurin"
 
       - name: Build YouTube
-        run: if [ -f "config.json" ]; then ./build.sh config.json --verbose; else ./build.sh config.toml --verbose; fi
+        run: |
+          if [ -f "/usr/local/bin/bash" ]; then
+            /usr/local/bin/bash ./build.sh config.toml --verbose
+          else
+            ./build.sh config.toml --verbose
+          fi
 
       - name: Download Changelog
         uses: actions/download-artifact@v4
@@ -137,7 +142,12 @@ jobs:
           distribution: "temurin"
 
       - name: Build Piko X
-        run: if [ -f "config.json" ]; then ./build.sh config.json --verbose; else ./build.sh config.toml --verbose; fi
+        run: |
+          if [ -f "/usr/local/bin/bash" ]; then
+            /usr/local/bin/bash ./build.sh config.toml --verbose
+          else
+            ./build.sh config.toml --verbose
+          fi
 
       - name: Download Changelog
         uses: actions/download-artifact@v4

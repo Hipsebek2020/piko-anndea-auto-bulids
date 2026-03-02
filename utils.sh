@@ -787,8 +787,13 @@ build_rv() {
 		rm "$stock_apk_to_patch"
 		if [ "$build_mode" = apk ]; then
 			local apk_output="${BUILD_DIR}/${app_name_l}-${rv_brand_f}-v${version_f}-${arch_f}.apk"
-			mv -f "$patched_apk" "$apk_output"
-			pr "Built ${table} (non-root): '${apk_output}'"
+			mkdir -p "$BUILD_DIR"
+			if mv -f "$patched_apk" "$apk_output"; then
+				pr "Built ${table} (non-root): '${apk_output}'"
+			else
+				epr "Failed to move APK to build directory: $patched_apk -> $apk_output"
+				add_fail_reason "$table" "Failed to move APK to build directory"
+			fi
 			continue
 		fi
 		local base_template
@@ -812,9 +817,14 @@ build_rv() {
 		cp -f "$patched_apk" "${base_template}/base.apk"
 		if [ "$include_stock" = true ]; then cp -f "$stock_apk" "${base_template}/${pkg_name}.apk"; fi
 		pushd >/dev/null "$base_template" || abort "Module template dir not found"
-		zip -"$COMPRESSION_LEVEL" -FSqr "${CWD}/${BUILD_DIR}/${module_output}" .
+		mkdir -p "$BUILD_DIR"
+		if zip -"$COMPRESSION_LEVEL" -FSqr "${CWD}/${BUILD_DIR}/${module_output}" .; then
+			pr "Built ${table} (root): '${BUILD_DIR}/${module_output}'"
+		else
+			epr "Failed to create module: ${module_output}"
+			add_fail_reason "$table" "Failed to create module zip"
+		fi
 		popd >/dev/null || :
-		pr "Built ${table} (root): '${BUILD_DIR}/${module_output}'"
 	done
 }
 
