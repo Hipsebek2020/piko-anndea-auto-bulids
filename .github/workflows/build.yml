@@ -106,6 +106,13 @@ jobs:
         with:
           name: changelog
 
+      - name: Upload YouTube APKs as Artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: youtube-apks
+          path: build/*YouTube*.apk
+          retention-days: 7
+
       - name: Create or Update YouTube Release
         if: steps.release_check.outputs.exists == 'false'
         uses: softprops/action-gh-release@v1
@@ -203,6 +210,13 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           name: changelog
+
+      - name: Upload Piko X APKs as Artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: pikox-apks
+          path: build/*Piko*.apk
+          retention-days: 7
 
       - name: Create or Update Piko X Release
         if: steps.release_check.outputs.exists == 'false'

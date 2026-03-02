@@ -2,7 +2,9 @@ name: CI
 on:
   workflow_dispatch:
   schedule:
-    - cron: "0 16 * * *"
+    - cron: "0 16 * * *"  # Daily at 16:00 UTC
+  push:
+    branches: [ main, master ]  # Optional: trigger on push to main branch for testing
 
 jobs:
   check:
@@ -48,3 +50,47 @@ jobs:
     uses: ./.github/workflows/build.yml
     if: ${{ needs.check.outputs.SHOULD_BUILD == 1 }}
     secrets: inherit
+
+  # Additional job to create daily releases with all APKs
+  daily-release:
+    permissions: 
+      contents: write
+    runs-on: ubuntu-latest
+    needs: [check, build]
+    if: ${{ needs.check.outputs.SHOULD_BUILD == 1 }}
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Get Current Date
+        id: date
+        run: echo "date=$(date +'%Y-%m-%d')" >> $GITHUB_OUTPUT
+
+      - name: Download Build Artifacts
+        uses: actions/download-artifact@v4
+        with:
+          pattern: "*-apks"
+          merge-multiple: true
+          path: artifacts/
+
+      - name: Create Daily Release
+        uses: softprops/action-gh-release@v1
+        with:
+          tag_name: daily-${{ steps.date.outputs.date }}
+          name: Daily Build - ${{ steps.date.outputs.date }}
+          body: |
+            Automated daily build of ReVanced APKs
+            
+            **Build Information:**
+            - Run ID: ${{ github.run_number }}
+            - Commit: ${{ github.sha }}
+            - Triggered: ${{ github.event_name }}
+            - Date: ${{ steps.date.outputs.date }}
+            
+            **APK Files:**
+            All available APK files from this build are attached below.
+          files: artifacts/**/*.apk
+          draft: false
+          prerelease: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
