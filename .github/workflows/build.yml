@@ -92,14 +92,14 @@ jobs:
       - name: Verify APK Files Exist
         run: |
           echo "Checking for APK files in build directory..."
-          APK_COUNT=$(find build -name "*YouTube*.apk" -type f | wc -l)
+          APK_COUNT=$(find build -name "*youtube*.apk" -type f | wc -l)
           echo "Found $APK_COUNT YouTube APK files"
           if [ "$APK_COUNT" -eq 0 ]; then
             echo "ERROR: No YouTube APK files found in build directory!"
             ls -la build/
             exit 1
           fi
-          find build -name "*YouTube*.apk" -type f -exec echo "Found: {}" \;
+          find build -name "*youtube*.apk" -type f -exec echo "Found: {}" \;
 
       - name: Download Changelog
         uses: actions/download-artifact@v4
@@ -110,14 +110,14 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: youtube-apks
-          path: build/*YouTube*.apk
+          path: build/*youtube*.apk
           retention-days: 7
 
       - name: Create or Update YouTube Release
         if: steps.release_check.outputs.exists == 'false'
         uses: softprops/action-gh-release@v1
         with:
-          files: build/*YouTube*.apk
+          files: build/*youtube*.apk
           tag_name: YouTube-${{ needs.check-updates.outputs.version_tag }}
           name: YouTube anddea ${{ needs.check-updates.outputs.version_tag }}
           body_path: changelog.txt
@@ -137,7 +137,7 @@ jobs:
           done
           # Upload new APKs
           UPLOAD_COUNT=0
-          for apk in build/*YouTube*.apk; do
+          for apk in build/*youtube*.apk; do
             if [ -f "$apk" ]; then
               echo "Uploading: $(basename "$apk")"
               gh release upload "YouTube-${{ needs.check-updates.outputs.version_tag }}" "$apk"
@@ -197,14 +197,14 @@ jobs:
       - name: Verify APK Files Exist
         run: |
           echo "Checking for APK files in build directory..."
-          APK_COUNT=$(find build -name "*Piko*.apk" -type f | wc -l)
+          APK_COUNT=$(find build -name "*twitter*.apk" -type f | wc -l)
           echo "Found $APK_COUNT Piko X APK files"
           if [ "$APK_COUNT" -eq 0 ]; then
             echo "ERROR: No Piko X APK files found in build directory!"
             ls -la build/
             exit 1
           fi
-          find build -name "*Piko*.apk" -type f -exec echo "Found: {}" \;
+          find build -name "*twitter*.apk" -type f -exec echo "Found: {}" \;
 
       - name: Download Changelog
         uses: actions/download-artifact@v4
@@ -215,14 +215,14 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: pikox-apks
-          path: build/*Piko*.apk
+          path: build/*twitter*.apk
           retention-days: 7
 
       - name: Create or Update Piko X Release
         if: steps.release_check.outputs.exists == 'false'
         uses: softprops/action-gh-release@v1
         with:
-          files: build/*Piko*.apk
+          files: build/*twitter*.apk
           tag_name: PikoX-${{ needs.check-updates.outputs.version_tag }}
           name: Piko X (Twitter) anddea ${{ needs.check-updates.outputs.version_tag }}
           body_path: changelog.txt
@@ -242,7 +242,7 @@ jobs:
           done
           # Upload new APKs
           UPLOAD_COUNT=0
-          for apk in build/*Piko*.apk; do
+          for apk in build/*twitter*.apk; do
             if [ -f "$apk" ]; then
               echo "Uploading: $(basename "$apk")"
               gh release upload "PikoX-${{ needs.check-updates.outputs.version_tag }}" "$apk"
