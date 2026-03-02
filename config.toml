@@ -10,7 +10,7 @@ cli-args = []
 [youtube-anddea]
 app-name = "com.google.android.youtube"
 enabled = true
-build-mode = "both"
+build-mode = "apk"
 version = "auto"
 
 cli-source = "inotia00/revanced-cli"
