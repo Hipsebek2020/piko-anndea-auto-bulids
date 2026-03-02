@@ -1,5 +1,10 @@
 #!/usr/bin/env bash
 
+# Use newer bash if available
+if [ -x "/usr/local/bin/bash" ]; then
+    exec /usr/local/bin/bash "$0" "$@"
+fi
+
 MODULE_TEMPLATE_DIR="module"
 CWD=$(pwd)
 TEMP_DIR="temp"

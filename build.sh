@@ -1,5 +1,10 @@
 #!/usr/bin/env bash
 
+# Use newer bash if available
+if [ -x "/usr/local/bin/bash" ]; then
+    exec /usr/local/bin/bash "$0" "$@"
+fi
+
 set -euo pipefail
 shopt -s nullglob
 trap "rm -rf temp/*tmp.* temp/*/*tmp.* temp/*-temporary-files; exit 130" INT

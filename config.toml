@@ -1,5 +1,5 @@
 parallel-jobs = 2
-remove-rv-integrations-checks = true
+remove-rv-integrations-checks = false
 debug = true
 
 [default]
@@ -13,6 +13,7 @@ enabled = true
 build-mode = "both"
 version = "auto"
 
+cli-source = "inotia00/revanced-cli"
 patches-source = "anddea/revanced-patches"
 integrations-source = ""
 
@@ -27,6 +28,7 @@ enabled = true
 build-mode = "apk"
 version = "auto"
 
+cli-source = "inotia00/revanced-cli"
 patches-source = "crimera/piko"
 integrations-source = ""
 
