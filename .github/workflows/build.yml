@@ -89,6 +89,18 @@ jobs:
             ./fix-apks.sh
           fi
 
+      - name: Verify APK Files Exist
+        run: |
+          echo "Checking for APK files in build directory..."
+          APK_COUNT=$(find build -name "*YouTube*.apk" -type f | wc -l)
+          echo "Found $APK_COUNT YouTube APK files"
+          if [ "$APK_COUNT" -eq 0 ]; then
+            echo "ERROR: No YouTube APK files found in build directory!"
+            ls -la build/
+            exit 1
+          fi
+          find build -name "*YouTube*.apk" -type f -exec echo "Found: {}" \;
+
       - name: Download Changelog
         uses: actions/download-artifact@v4
         with:
@@ -110,16 +122,26 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
+          echo "Updating existing YouTube release..."
           # Delete existing assets
           gh release view "YouTube-${{ needs.check-updates.outputs.version_tag }}" --json assets --jq '.assets[].name' | grep -E '\.apk$' | while read asset; do
+            echo "Deleting existing asset: $asset"
             gh release delete-asset "YouTube-${{ needs.check-updates.outputs.version_tag }}" "$asset" --yes
           done
           # Upload new APKs
+          UPLOAD_COUNT=0
           for apk in build/*YouTube*.apk; do
             if [ -f "$apk" ]; then
+              echo "Uploading: $(basename "$apk")"
               gh release upload "YouTube-${{ needs.check-updates.outputs.version_tag }}" "$apk"
+              UPLOAD_COUNT=$((UPLOAD_COUNT + 1))
             fi
           done
+          echo "Uploaded $UPLOAD_COUNT APK files to YouTube release"
+          if [ "$UPLOAD_COUNT" -eq 0 ]; then
+            echo "ERROR: No APK files were uploaded!"
+            exit 1
+          fi
 
   build-piko-x:
     needs: check-updates
@@ -165,6 +187,18 @@ jobs:
             ./fix-apks.sh
           fi
 
+      - name: Verify APK Files Exist
+        run: |
+          echo "Checking for APK files in build directory..."
+          APK_COUNT=$(find build -name "*Piko*.apk" -type f | wc -l)
+          echo "Found $APK_COUNT Piko X APK files"
+          if [ "$APK_COUNT" -eq 0 ]; then
+            echo "ERROR: No Piko X APK files found in build directory!"
+            ls -la build/
+            exit 1
+          fi
+          find build -name "*Piko*.apk" -type f -exec echo "Found: {}" \;
+
       - name: Download Changelog
         uses: actions/download-artifact@v4
         with:
@@ -186,13 +220,23 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
+          echo "Updating existing Piko X release..."
           # Delete existing assets
           gh release view "PikoX-${{ needs.check-updates.outputs.version_tag }}" --json assets --jq '.assets[].name' | grep -E '\.apk$' | while read asset; do
+            echo "Deleting existing asset: $asset"
             gh release delete-asset "PikoX-${{ needs.check-updates.outputs.version_tag }}" "$asset" --yes
           done
           # Upload new APKs
+          UPLOAD_COUNT=0
           for apk in build/*Piko*.apk; do
             if [ -f "$apk" ]; then
+              echo "Uploading: $(basename "$apk")"
               gh release upload "PikoX-${{ needs.check-updates.outputs.version_tag }}" "$apk"
+              UPLOAD_COUNT=$((UPLOAD_COUNT + 1))
             fi
           done
+          echo "Uploaded $UPLOAD_COUNT APK files to Piko X release"
+          if [ "$UPLOAD_COUNT" -eq 0 ]; then
+            echo "ERROR: No APK files were uploaded!"
+            exit 1
+          fi
