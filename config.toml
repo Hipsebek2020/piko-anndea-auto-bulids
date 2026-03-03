@@ -12,6 +12,7 @@ app-name = "com.google.android.youtube"
 enabled = true
 build-mode = "apk"
 version = "auto"
+arch = "arm64-v8a"
 
 cli-source = "inotia00/revanced-cli"
 patches-source = "anddea/revanced-patches"
@@ -27,6 +28,7 @@ app-name = "com.twitter.android"
 enabled = true
 build-mode = "apk"
 version = "auto"
+arch = "arm64-v8a"
 
 cli-source = "inotia00/revanced-cli"
 patches-source = "crimera/piko"

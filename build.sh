@@ -63,11 +63,8 @@ for file in "$TEMP_DIR"/*/changelog.md; do
 	[ -f "$file" ] && : >"$file"
 done
 
-mkdir -p ${MODULE_TEMPLATE_DIR}/bin/arm64 ${MODULE_TEMPLATE_DIR}/bin/arm ${MODULE_TEMPLATE_DIR}/bin/x86 ${MODULE_TEMPLATE_DIR}/bin/x64
+mkdir -p ${MODULE_TEMPLATE_DIR}/bin/arm64
 gh_dl "${MODULE_TEMPLATE_DIR}/bin/arm64/cmpr" "https://github.com/j-hc/cmpr/releases/latest/download/cmpr-arm64-v8a"
-gh_dl "${MODULE_TEMPLATE_DIR}/bin/arm/cmpr" "https://github.com/j-hc/cmpr/releases/latest/download/cmpr-armeabi-v7a"
-gh_dl "${MODULE_TEMPLATE_DIR}/bin/x86/cmpr" "https://github.com/j-hc/cmpr/releases/latest/download/cmpr-x86"
-gh_dl "${MODULE_TEMPLATE_DIR}/bin/x64/cmpr" "https://github.com/j-hc/cmpr/releases/latest/download/cmpr-x86_64"
 
 idx=0
 for table_name in $(toml_get_table_names); do
@@ -144,8 +141,8 @@ for table_name in $(toml_get_table_names); do
 	} || app_args_archive_dlurl=""
 	if [ -z "$app_args_dl_from" ]; then abort "ERROR: no 'apkmirror_dlurl', 'uptodown_dlurl' or 'archive_dlurl' option was set for '$table_name'."; fi
 	app_args_arch=$(toml_get "$t" arch) || app_args_arch="all"
-	if ! isoneof "$app_args_arch" "both" "all" "arm64-v8a" "arm-v7a" "x86_64" "x86"; then
-		abort "wrong arch '$app_args_arch' for '$table_name'"
+	if ! isoneof "$app_args_arch" "all" "arm64-v8a"; then
+		abort "wrong arch '$app_args_arch' for '$table_name' - only 'all' or 'arm64-v8a' are supported"
 	fi
 
 	app_args_include_stock=$(toml_get "$t" include-stock) || app_args_include_stock=true && vtf "$app_args_include_stock" "include-stock"
@@ -154,31 +151,16 @@ for table_name in $(toml_get_table_names); do
 	table_name_f=${table_name_f// /-}
 	app_args_module_prop_name=$(toml_get "$t" module-prop-name) || app_args_module_prop_name="${table_name_f}-jhc"
 
-	if [ "$app_args_arch" = both ]; then
-		app_args_table="$table_name (arm64-v8a)"
+	# Default to arm64-v8a for all builds
+	if [ "$app_args_arch" = "all" ]; then
 		app_args_arch="arm64-v8a"
-		module_prop_name_b=$app_args_module_prop_name
-		app_args_module_prop_name="${module_prop_name_b}-arm64"
-		idx=$((idx + 1))
-		build_rv "$app_args_cli|$app_args_ptjar|$app_args_rv_brand|$app_args_excluded_patches|$app_args_included_patches|$app_args_exclusive_patches|$app_args_version|$app_args_app_name|$app_args_patcher_args|$app_args_table|$app_args_build_mode|$app_args_uptodown_dlurl|$app_args_apkmirror_dlurl|$app_args_archive_dlurl|$app_args_dl_from|$app_args_arch|$app_args_include_stock|$app_args_dpi|$app_args_module_prop_name" &
-		app_args_table="$table_name (arm-v7a)"
-		app_args_arch="arm-v7a"
-		app_args_module_prop_name="${module_prop_name_b}-arm"
-		if ((idx >= PARALLEL_JOBS)); then
-			wait -n
-			idx=$((idx - 1))
-		fi
-		idx=$((idx + 1))
-		build_rv "$app_args_cli|$app_args_ptjar|$app_args_rv_brand|$app_args_excluded_patches|$app_args_included_patches|$app_args_exclusive_patches|$app_args_version|$app_args_app_name|$app_args_patcher_args|$app_args_table|$app_args_build_mode|$app_args_uptodown_dlurl|$app_args_apkmirror_dlurl|$app_args_archive_dlurl|$app_args_dl_from|$app_args_arch|$app_args_include_stock|$app_args_dpi|$app_args_module_prop_name" &
-	else
-		if [ "$app_args_arch" = "arm64-v8a" ]; then
-			app_args_module_prop_name="${app_args_module_prop_name}-arm64"
-		elif [ "$app_args_arch" = "arm-v7a" ]; then
-			app_args_module_prop_name="${app_args_module_prop_name}-arm"
-		fi
-		idx=$((idx + 1))
-		build_rv "$app_args_cli|$app_args_ptjar|$app_args_rv_brand|$app_args_excluded_patches|$app_args_included_patches|$app_args_exclusive_patches|$app_args_version|$app_args_app_name|$app_args_patcher_args|$app_args_table|$app_args_build_mode|$app_args_uptodown_dlurl|$app_args_apkmirror_dlurl|$app_args_archive_dlurl|$app_args_dl_from|$app_args_arch|$app_args_include_stock|$app_args_dpi|$app_args_module_prop_name" &
 	fi
+	
+	if [ "$app_args_arch" = "arm64-v8a" ]; then
+		app_args_module_prop_name="${app_args_module_prop_name}-arm64"
+	fi
+	idx=$((idx + 1))
+	build_rv "$app_args_cli|$app_args_ptjar|$app_args_rv_brand|$app_args_excluded_patches|$app_args_included_patches|$app_args_exclusive_patches|$app_args_version|$app_args_app_name|$app_args_patcher_args|$app_args_table|$app_args_build_mode|$app_args_uptodown_dlurl|$app_args_apkmirror_dlurl|$app_args_archive_dlurl|$app_args_dl_from|$app_args_arch|$app_args_include_stock|$app_args_dpi|$app_args_module_prop_name" &
 done
 wait
 rm -rf temp/tmp.*
