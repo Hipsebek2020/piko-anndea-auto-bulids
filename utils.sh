@@ -587,7 +587,13 @@ get_uptodown_pkg_name() { $HTMLQ --text "tr.full:nth-child(1) > td:nth-child(3)"
 dl_archive() {
 	local url=$1 version=$2 output=$3 arch=$4
 	local path version=${version// /}
-	path=$(grep "${version_f#v}-${arch// /}" <<<"$__ARCHIVE_RESP__") || return 1
+	version=${version#v}
+	# First try to find architecture-specific APK
+	path=$(grep "${version}-${arch// /}" <<<"$__ARCHIVE_RESP__")
+	if [ -z "$path" ]; then
+		# Fall back to universal APK if architecture-specific not found
+		path=$(grep "${version}-all" <<<"$__ARCHIVE_RESP__") || return 1
+	fi
 	req "${url}/${path}" "$output"
 }
 get_archive_resp() {
@@ -596,7 +602,7 @@ get_archive_resp() {
 	if [ -z "$r" ]; then return 1; else __ARCHIVE_RESP__=$(sed -n 's;^<a href="\(.*\)"[^"]*;\1;p' <<<"$r"); fi
 	__ARCHIVE_PKG_NAME__=$(awk -F/ '{print $NF}' <<<"$1")
 }
-get_archive_vers() { sed 's/^[^-]*-//;s/-\(all\|arm64-v8a\|arm-v7a\)\.apk//g' <<<"$__ARCHIVE_RESP__"; }
+get_archive_vers() { sed 's/^[^-]*-//;s/-\(all\|arm64-v8a\|arm-v7a\|x86\|x86_64\)\.apk//g' <<<"$__ARCHIVE_RESP__"; }
 get_archive_pkg_name() { echo "$__ARCHIVE_PKG_NAME__"; }
 # --------------------------------------------------
 
