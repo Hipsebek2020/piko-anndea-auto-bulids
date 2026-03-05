@@ -13,6 +13,7 @@ enabled = true
 build-mode = "apk"
 version = "auto"
 arch = "arm64-v8a"
+include-stock = false
 
 cli-source = "inotia00/revanced-cli"
 patches-source = "anddea/revanced-patches"
@@ -29,6 +30,7 @@ enabled = true
 build-mode = "apk"
 version = "auto"
 arch = "arm64-v8a"
+include-stock = false
 
 cli-source = "inotia00/revanced-cli"
 patches-source = "crimera/piko"
