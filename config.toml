@@ -1,4 +1,4 @@
-parallel-jobs = 2
+parallel-jobs = 1
 remove-rv-integrations-checks = false
 debug = true
 
