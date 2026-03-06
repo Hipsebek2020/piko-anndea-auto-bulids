@@ -20,7 +20,7 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          REMOTE_TAG=$(curl -s https://api.github.com/repos/anddea/revanced-patches/releases/latest | jq -r .tag_name)
+          REMOTE_TAG=$(curl -s https://api.github.com/repos/MorpheApp/revanced-patches/releases/latest | jq -r .tag_name)
           LOCAL_YT=$(gh release list --limit 10 | grep "YouTube-" | head -n 1 | awk '{print $3}' | sed 's/YouTube-//' || echo "")
           LOCAL_PX=$(gh release list --limit 10 | grep "PikoX-" | head -n 1 | awk '{print $3}' | sed 's/PikoX-//' || echo "")
           echo "Remote: $REMOTE_TAG | Local YT: $LOCAL_YT | Local PX: $LOCAL_PX"
@@ -28,7 +28,7 @@ jobs:
             if [ "$REMOTE_TAG" != "$LOCAL_YT" ] || [ "$REMOTE_TAG" != "$LOCAL_PX" ]; then
               echo "should_build=true" >> $GITHUB_OUTPUT
               echo "version_tag=$REMOTE_TAG" >> $GITHUB_OUTPUT
-              gh release view "$REMOTE_TAG" --repo anddea/revanced-patches \
+              gh release view "$REMOTE_TAG" --repo MorpheApp/revanced-patches \
                 --json body --template '{{.body}}' > changelog.txt || \
                 echo "No changelog available" > changelog.txt
             else
@@ -119,7 +119,7 @@ jobs:
         with:
           files: build/*youtube*.apk
           tag_name: YouTube-${{ needs.check-updates.outputs.version_tag }}
-          name: YouTube anddea ${{ needs.check-updates.outputs.version_tag }}
+          name: YouTube Morphe ${{ needs.check-updates.outputs.version_tag }}
           body_path: changelog.txt
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -224,7 +224,7 @@ jobs:
         with:
           files: build/*twitter*.apk
           tag_name: PikoX-${{ needs.check-updates.outputs.version_tag }}
-          name: Piko X (Twitter) anddea ${{ needs.check-updates.outputs.version_tag }}
+          name: Piko X (Twitter) Morphe ${{ needs.check-updates.outputs.version_tag }}
           body_path: changelog.txt
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
