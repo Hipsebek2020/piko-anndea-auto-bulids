@@ -3,6 +3,7 @@ name: Build YouTube and Piko Releases
 env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
   ACTIONS_RUNNER_DEBUG: true
+  NODE_OPTIONS: --no-deprecation
 
 on:
   schedule:
@@ -21,9 +22,13 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: '24'
+        env:
+          NODE_OPTIONS: --no-deprecation
 
       - name: Checkout Repository
         uses: actions/checkout@v4
+        env:
+          NODE_OPTIONS: --no-deprecation
 
       - name: Check for Updates
         id: check
@@ -98,7 +103,7 @@ jobs:
           name: changelog
           path: changelog.txt
         env:
-          NODE_OPTIONS: --max-old-space-size=4096
+          NODE_OPTIONS: --no-deprecation --max-old-space-size=4096
 
   build-youtube:
     needs: check-updates
@@ -112,9 +117,13 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: '24'
+        env:
+          NODE_OPTIONS: --no-deprecation
 
       - name: Checkout Repository
         uses: actions/checkout@v4
+        env:
+          NODE_OPTIONS: --no-deprecation
 
       - name: Check if YouTube Release Exists
         id: release_check
@@ -133,7 +142,7 @@ jobs:
           java-version: "17"
           distribution: "temurin"
         env:
-          NODE_OPTIONS: --max-old-space-size=4096
+          NODE_OPTIONS: --no-deprecation --max-old-space-size=4096
 
       - name: Build YouTube
         run: |
@@ -168,7 +177,7 @@ jobs:
         with:
           name: changelog
         env:
-          NODE_OPTIONS: --max-old-space-size=4096
+          NODE_OPTIONS: --no-deprecation --max-old-space-size=4096
 
       - name: Upload YouTube APKs as Artifacts
         uses: actions/upload-artifact@v4
@@ -177,11 +186,11 @@ jobs:
           path: build/*youtube*.apk
           retention-days: 7
         env:
-          NODE_OPTIONS: --max-old-space-size=4096
+          NODE_OPTIONS: --no-deprecation --max-old-space-size=4096
 
       - name: Create or Update YouTube Release
         if: steps.release_check.outputs.exists == 'false'
-        uses: softprops/action-gh-release@v1
+        uses: softprops/action-gh-release@v2
         with:
           files: build/*youtube*.apk
           tag_name: YouTube-${{ needs.check-updates.outputs.version_tag }}
@@ -189,7 +198,7 @@ jobs:
           body_path: changelog.txt
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          NODE_OPTIONS: --max-old-space-size=4096
+          NODE_OPTIONS: --no-deprecation --max-old-space-size=4096
 
       - name: Update Existing YouTube Release
         if: steps.release_check.outputs.exists == 'true'
@@ -229,9 +238,13 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: '24'
+        env:
+          NODE_OPTIONS: --no-deprecation
 
       - name: Checkout Repository
         uses: actions/checkout@v4
+        env:
+          NODE_OPTIONS: --no-deprecation
 
       - name: Check if PikoX Release Exists
         id: release_check
@@ -250,7 +263,7 @@ jobs:
           java-version: "17"
           distribution: "temurin"
         env:
-          NODE_OPTIONS: --max-old-space-size=4096
+          NODE_OPTIONS: --no-deprecation --max-old-space-size=4096
 
       - name: Build Piko X
         run: |
@@ -285,7 +298,7 @@ jobs:
         with:
           name: changelog
         env:
-          NODE_OPTIONS: --max-old-space-size=4096
+          NODE_OPTIONS: --no-deprecation --max-old-space-size=4096
 
       - name: Upload Piko X APKs as Artifacts
         uses: actions/upload-artifact@v4
@@ -294,11 +307,11 @@ jobs:
           path: build/*twitter*.apk
           retention-days: 7
         env:
-          NODE_OPTIONS: --max-old-space-size=4096
+          NODE_OPTIONS: --no-deprecation --max-old-space-size=4096
 
       - name: Create or Update Piko X Release
         if: steps.release_check.outputs.exists == 'false'
-        uses: softprops/action-gh-release@v1
+        uses: softprops/action-gh-release@v2
         with:
           files: build/*twitter*.apk
           tag_name: PikoX-${{ needs.check-updates.outputs.version_tag }}
@@ -306,7 +319,7 @@ jobs:
           body_path: changelog.txt
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          NODE_OPTIONS: --max-old-space-size=4096
+          NODE_OPTIONS: --no-deprecation --max-old-space-size=4096
 
       - name: Update Existing Piko X Release
         if: steps.release_check.outputs.exists == 'true'
