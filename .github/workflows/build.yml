@@ -2,6 +2,7 @@ name: Build YouTube and Piko Releases
 
 env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+  ACTIONS_RUNNER_DEBUG: true
 
 on:
   schedule:
@@ -16,6 +17,11 @@ jobs:
       should_build: ${{ steps.check.outputs.should_build }}
       version_tag: ${{ steps.check.outputs.version_tag }}
     steps:
+      - name: Setup Node.js 24
+        uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+
       - name: Checkout Repository
         uses: actions/checkout@v4
 
@@ -91,6 +97,8 @@ jobs:
         with:
           name: changelog
           path: changelog.txt
+        env:
+          NODE_OPTIONS: --max-old-space-size=4096
 
   build-youtube:
     needs: check-updates
@@ -100,6 +108,11 @@ jobs:
     permissions:
       contents: write
     steps:
+      - name: Setup Node.js 24
+        uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+
       - name: Checkout Repository
         uses: actions/checkout@v4
 
@@ -119,6 +132,8 @@ jobs:
         with:
           java-version: "17"
           distribution: "temurin"
+        env:
+          NODE_OPTIONS: --max-old-space-size=4096
 
       - name: Build YouTube
         run: |
@@ -152,6 +167,8 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           name: changelog
+        env:
+          NODE_OPTIONS: --max-old-space-size=4096
 
       - name: Upload YouTube APKs as Artifacts
         uses: actions/upload-artifact@v4
@@ -159,6 +176,8 @@ jobs:
           name: youtube-apks
           path: build/*youtube*.apk
           retention-days: 7
+        env:
+          NODE_OPTIONS: --max-old-space-size=4096
 
       - name: Create or Update YouTube Release
         if: steps.release_check.outputs.exists == 'false'
@@ -170,6 +189,7 @@ jobs:
           body_path: changelog.txt
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          NODE_OPTIONS: --max-old-space-size=4096
 
       - name: Update Existing YouTube Release
         if: steps.release_check.outputs.exists == 'true'
@@ -205,6 +225,11 @@ jobs:
     permissions:
       contents: write
     steps:
+      - name: Setup Node.js 24
+        uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+
       - name: Checkout Repository
         uses: actions/checkout@v4
 
@@ -224,6 +249,8 @@ jobs:
         with:
           java-version: "17"
           distribution: "temurin"
+        env:
+          NODE_OPTIONS: --max-old-space-size=4096
 
       - name: Build Piko X
         run: |
@@ -257,6 +284,8 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           name: changelog
+        env:
+          NODE_OPTIONS: --max-old-space-size=4096
 
       - name: Upload Piko X APKs as Artifacts
         uses: actions/upload-artifact@v4
@@ -264,6 +293,8 @@ jobs:
           name: pikox-apks
           path: build/*twitter*.apk
           retention-days: 7
+        env:
+          NODE_OPTIONS: --max-old-space-size=4096
 
       - name: Create or Update Piko X Release
         if: steps.release_check.outputs.exists == 'false'
@@ -275,6 +306,7 @@ jobs:
           body_path: changelog.txt
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          NODE_OPTIONS: --max-old-space-size=4096
 
       - name: Update Existing Piko X Release
         if: steps.release_check.outputs.exists == 'true'
