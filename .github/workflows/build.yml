@@ -1,4 +1,8 @@
 name: Build YouTube and Piko Releases
+
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
 on:
   schedule:
     - cron: "0 * * * *"
