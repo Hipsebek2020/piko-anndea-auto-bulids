@@ -20,12 +20,55 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          REMOTE_TAG=$(curl -s https://api.github.com/repos/MorpheApp/revanced-patches/releases/latest | jq -r .tag_name)
-          LOCAL_YT=$(gh release list --limit 10 | grep "YouTube-" | head -n 1 | awk '{print $3}' | sed 's/YouTube-//' || echo "")
-          LOCAL_PX=$(gh release list --limit 10 | grep "PikoX-" | head -n 1 | awk '{print $3}' | sed 's/PikoX-//' || echo "")
-          echo "Remote: $REMOTE_TAG | Local YT: $LOCAL_YT | Local PX: $LOCAL_PX"
+          # Get remote release info
+          REMOTE_RELEASE=$(curl -s https://api.github.com/repos/MorpheApp/revanced-patches/releases/latest)
+          REMOTE_TAG=$(echo "$REMOTE_RELEASE" | jq -r .tag_name)
+          REMOTE_DATE=$(echo "$REMOTE_RELEASE" | jq -r .published_at)
+          REMOTE_PATCH_ASSET=$(echo "$REMOTE_RELEASE" | jq -r '.assets[] | select(.name | endswith(".rvp")) | .name' | head -1)
+          
+          # Get local release dates from our releases
+          LOCAL_YT_TAG=$(gh release list --limit 10 | grep "YouTube-" | head -n 1 | awk '{print $3}' || echo "")
+          LOCAL_PX_TAG=$(gh release list --limit 10 | grep "PikoX-" | head -n 1 | awk '{print $3}' || echo "")
+          
+          LOCAL_YT_DATE=""
+          LOCAL_PX_DATE=""
+          
+          if [ -n "$LOCAL_YT_TAG" ]; then
+            LOCAL_YT_DATE=$(gh release view "$LOCAL_YT_TAG" --json publishedAt -q '.publishedAt' 2>/dev/null || echo "")
+          fi
+          
+          if [ -n "$LOCAL_PX_TAG" ]; then
+            LOCAL_PX_DATE=$(gh release view "$LOCAL_PX_TAG" --json publishedAt -q '.publishedAt' 2>/dev/null || echo "")
+          fi
+          
+          echo "Remote: $REMOTE_TAG ($REMOTE_DATE)"
+          echo "Patch asset: $REMOTE_PATCH_ASSET"
+          echo "Local YT: $LOCAL_YT_DATE | Local PX: $LOCAL_PX_DATE"
+          
           if [ "$REMOTE_TAG" != "null" ] && [ "$REMOTE_TAG" != "" ]; then
-            if [ "$REMOTE_TAG" != "$LOCAL_YT" ] || [ "$REMOTE_TAG" != "$LOCAL_PX" ]; then
+            # Check if remote date is newer than either local date, or patch asset changed
+            NEEDS_BUILD=false
+            
+            if [ -z "$LOCAL_YT_DATE" ] || [ "$REMOTE_DATE" > "$LOCAL_YT_DATE" ]; then
+              NEEDS_BUILD=true
+              echo "YouTube needs update: new remote release"
+            fi
+            
+            if [ -z "$LOCAL_PX_DATE" ] || [ "$REMOTE_DATE" > "$LOCAL_PX_DATE" ]; then
+              NEEDS_BUILD=true
+              echo "PikoX needs update: new remote release"
+            fi
+            
+            # Also check if tag changed
+            LOCAL_YT_TAG_SHORT=$(echo "$LOCAL_YT_TAG" | sed 's/YouTube-//' || echo "")
+            LOCAL_PX_TAG_SHORT=$(echo "$LOCAL_PX_TAG" | sed 's/PikoX-//' || echo "")
+            
+            if [ "$REMOTE_TAG" != "$LOCAL_YT_TAG_SHORT" ] || [ "$REMOTE_TAG" != "$LOCAL_PX_TAG_SHORT" ]; then
+              NEEDS_BUILD=true
+              echo "Tag mismatch detected: remote=$REMOTE_TAG, yt=$LOCAL_YT_TAG_SHORT, px=$LOCAL_PX_TAG_SHORT"
+            fi
+            
+            if [ "$NEEDS_BUILD" = "true" ]; then
               echo "should_build=true" >> $GITHUB_OUTPUT
               echo "version_tag=$REMOTE_TAG" >> $GITHUB_OUTPUT
               gh release view "$REMOTE_TAG" --repo MorpheApp/revanced-patches \
