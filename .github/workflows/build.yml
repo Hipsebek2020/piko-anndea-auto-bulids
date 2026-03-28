@@ -76,9 +76,9 @@ jobs:
       - name: Build YouTube
         run: |
           if [ -f "/usr/local/bin/bash" ]; then
-            /usr/local/bin/bash ./build.sh config.youtube.toml --verbose
+            /usr/local/bin/bash ./build.sh config.youtube.toml
           else
-            ./build.sh config.youtube.toml --verbose
+            ./build.sh config.youtube.toml
           fi
 
       - name: Move APKs to Build Directory
@@ -181,9 +181,9 @@ jobs:
       - name: Build Piko X
         run: |
           if [ -f "/usr/local/bin/bash" ]; then
-            /usr/local/bin/bash ./build.sh config.piko.toml --verbose
+            /usr/local/bin/bash ./build.sh config.piko.toml
           else
-            ./build.sh config.piko.toml --verbose
+            ./build.sh config.piko.toml
           fi
 
       - name: Move APKs to Build Directory

@@ -25,5 +25,5 @@ integrations-source = ""
 
 patcher-args = "-e 'Bring back twitter'"
 
-archive-dlurl = "https://archive.org/download/geologically/apks/com.twitter.android/Twitter_10.21.0-release.0.apk"
+archive-dlurl = "https://archive.org/download/geologically/apks/com.twitter.android/"
 dpi = "120-640dpi"

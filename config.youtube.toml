@@ -25,4 +25,4 @@ integrations-source = ""
 
 patcher-args = "--include 'GmsCore support'"
 
-archive-dlurl = "https://archive.org/download/geologically/apks/com.google.android.youtube/YouTube_19.05.36.apk"
+archive-dlurl = "https://archive.org/download/geologically/apks/com.google.android.youtube/"
