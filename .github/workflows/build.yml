@@ -34,7 +34,7 @@ jobs:
           REMOTE_RELEASE=$(curl -s https://api.github.com/repos/MorpheApp/revanced-patches/releases/latest)
           REMOTE_TAG=$(echo "$REMOTE_RELEASE" | jq -r .tag_name)
           REMOTE_DATE=$(echo "$REMOTE_RELEASE" | jq -r .published_at)
-          REMOTE_PATCH_ASSET=$(echo "$REMOTE_RELEASE" | jq -r '.assets[] | select(.name | endswith(".rvp")) | .name' | head -1)
+          REMOTE_PATCH_ASSET=$(echo "$REMOTE_RELEASE" | jq -r '.assets // [] | map(select(.name | endswith(".rvp"))) | .[0].name // ""' | head -1)
           
           # Get local release dates from our releases
           LOCAL_YT_TAG=$(gh release list --limit 10 | grep "YouTube-" | head -n 1 | awk '{print $3}' || echo "")
