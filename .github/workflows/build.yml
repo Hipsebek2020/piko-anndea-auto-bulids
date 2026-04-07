@@ -34,59 +34,59 @@ jobs:
           REMOTE_RELEASE=$(curl -s https://api.github.com/repos/MorpheApp/revanced-patches/releases/latest)
           REMOTE_TAG=$(echo "$REMOTE_RELEASE" | jq -r .tag_name)
           REMOTE_DATE=$(echo "$REMOTE_RELEASE" | jq -r .published_at)
-          REMOTE_PATCH_ASSET=$(echo "$REMOTE_RELEASE" | jq -r '.assets // [] | map(select(.name | endswith(".rvp"))) | .[0].name // ""' | head -1)
           
-          # Get local release dates from our releases
-          LOCAL_YT_TAG=$(gh release list --limit 10 | grep "YouTube-" | head -n 1 | awk '{print $3}' || echo "")
-          LOCAL_PX_TAG=$(gh release list --limit 10 | grep "PikoX-" | head -n 1 | awk '{print $3}' || echo "")
-          
-          LOCAL_YT_DATE=""
-          LOCAL_PX_DATE=""
-          
-          if [ -n "$LOCAL_YT_TAG" ]; then
-            LOCAL_YT_DATE=$(gh release view "$LOCAL_YT_TAG" --json publishedAt -q '.publishedAt' 2>/dev/null || echo "")
+          if [ "$REMOTE_TAG" = "null" ] || [ -z "$REMOTE_TAG" ]; then
+            echo "Error: Could not fetch remote release info"
+            echo "should_build=false" >> $GITHUB_OUTPUT
+            exit 0
           fi
+
+          # Get local release info
+          LOCAL_YT_RELEASE=$(gh release list --limit 100 --json tagName,publishedAt --jq 'map(select(.tagName | startswith("YouTube-"))) | .[0]' 2>/dev/null || echo "null")
+          LOCAL_PX_RELEASE=$(gh release list --limit 100 --json tagName,publishedAt --jq 'map(select(.tagName | startswith("PikoX-"))) | .[0]' 2>/dev/null || echo "null")
           
-          if [ -n "$LOCAL_PX_TAG" ]; then
-            LOCAL_PX_DATE=$(gh release view "$LOCAL_PX_TAG" --json publishedAt -q '.publishedAt' 2>/dev/null || echo "")
-          fi
-          
+          LOCAL_YT_TAG=$(echo "$LOCAL_YT_RELEASE" | jq -r 'if . == null then "" else .tagName // "" end')
+          LOCAL_YT_DATE=$(echo "$LOCAL_YT_RELEASE" | jq -r 'if . == null then "" else .publishedAt // "" end')
+          LOCAL_PX_TAG=$(echo "$LOCAL_PX_RELEASE" | jq -r 'if . == null then "" else .tagName // "" end')
+          LOCAL_PX_DATE=$(echo "$LOCAL_PX_RELEASE" | jq -r 'if . == null then "" else .publishedAt // "" end')
+
           echo "Remote: $REMOTE_TAG ($REMOTE_DATE)"
-          echo "Patch asset: $REMOTE_PATCH_ASSET"
-          echo "Local YT: $LOCAL_YT_DATE | Local PX: $LOCAL_PX_DATE"
+          echo "Local YT: $LOCAL_YT_TAG ($LOCAL_YT_DATE)"
+          echo "Local PX: $LOCAL_PX_TAG ($LOCAL_PX_DATE)"
           
-          if [ "$REMOTE_TAG" != "null" ] && [ "$REMOTE_TAG" != "" ]; then
-            # Check if remote date is newer than either local date, or patch asset changed
-            NEEDS_BUILD=false
-            
-            if [ -z "$LOCAL_YT_DATE" ] || [ "$REMOTE_DATE" > "$LOCAL_YT_DATE" ]; then
-              NEEDS_BUILD=true
-              echo "YouTube needs update: new remote release"
-            fi
-            
-            if [ -z "$LOCAL_PX_DATE" ] || [ "$REMOTE_DATE" > "$LOCAL_PX_DATE" ]; then
-              NEEDS_BUILD=true
-              echo "PikoX needs update: new remote release"
-            fi
-            
-            # Also check if tag changed
-            LOCAL_YT_TAG_SHORT=$(echo "$LOCAL_YT_TAG" | sed 's/YouTube-//' || echo "")
-            LOCAL_PX_TAG_SHORT=$(echo "$LOCAL_PX_TAG" | sed 's/PikoX-//' || echo "")
-            
-            if [ "$REMOTE_TAG" != "$LOCAL_YT_TAG_SHORT" ] || [ "$REMOTE_TAG" != "$LOCAL_PX_TAG_SHORT" ]; then
-              NEEDS_BUILD=true
-              echo "Tag mismatch detected: remote=$REMOTE_TAG, yt=$LOCAL_YT_TAG_SHORT, px=$LOCAL_PX_TAG_SHORT"
-            fi
-            
-            if [ "$NEEDS_BUILD" = "true" ]; then
-              echo "should_build=true" >> $GITHUB_OUTPUT
-              echo "version_tag=$REMOTE_TAG" >> $GITHUB_OUTPUT
-              gh release view "$REMOTE_TAG" --repo MorpheApp/revanced-patches \
-                --json body --template '{{.body}}' > changelog.txt || \
-                echo "No changelog available" > changelog.txt
-            else
-              echo "should_build=false" >> $GITHUB_OUTPUT
-            fi
+          NEEDS_BUILD=false
+
+          # Check YouTube
+          if [[ -z "$LOCAL_YT_DATE" || "$REMOTE_DATE" > "$LOCAL_YT_DATE" ]]; then
+            NEEDS_BUILD=true
+            echo "YouTube needs update: new remote release or no local release"
+          fi
+          
+          # Check PikoX
+          if [[ -z "$LOCAL_PX_DATE" || "$REMOTE_DATE" > "$LOCAL_PX_DATE" ]]; then
+            NEEDS_BUILD=true
+            echo "PikoX needs update: new remote release or no local release"
+          fi
+          
+          # Tag mismatch check
+          LOCAL_YT_TAG_SHORT=${LOCAL_YT_TAG#YouTube-}
+          LOCAL_PX_TAG_SHORT=${LOCAL_PX_TAG#PikoX-}
+          
+          if [ "$REMOTE_TAG" != "$LOCAL_YT_TAG_SHORT" ]; then
+            NEEDS_BUILD=true
+            echo "YouTube tag mismatch: remote=$REMOTE_TAG, local=$LOCAL_YT_TAG_SHORT"
+          fi
+          if [ "$REMOTE_TAG" != "$LOCAL_PX_TAG_SHORT" ]; then
+            NEEDS_BUILD=true
+            echo "PikoX tag mismatch: remote=$REMOTE_TAG, local=$LOCAL_PX_TAG_SHORT"
+          fi
+
+          if [ "$NEEDS_BUILD" = "true" ]; then
+            echo "should_build=true" >> $GITHUB_OUTPUT
+            echo "version_tag=$REMOTE_TAG" >> $GITHUB_OUTPUT
+            gh release view "$REMOTE_TAG" --repo MorpheApp/revanced-patches \
+              --json body --template '{{.body}}' > changelog.txt || \
+              echo "No changelog available" > changelog.txt
           else
             echo "should_build=false" >> $GITHUB_OUTPUT
           fi
@@ -136,6 +136,8 @@ jobs:
           NODE_OPTIONS: --max-old-space-size=4096
 
       - name: Build YouTube
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           if [ -f "/usr/local/bin/bash" ]; then
             /usr/local/bin/bash ./build.sh config.youtube.toml
@@ -253,6 +255,8 @@ jobs:
           NODE_OPTIONS: --max-old-space-size=4096
 
       - name: Build Piko X
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           if [ -f "/usr/local/bin/bash" ]; then
             /usr/local/bin/bash ./build.sh config.piko.toml
