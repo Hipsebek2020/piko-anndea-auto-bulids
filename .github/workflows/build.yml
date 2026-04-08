@@ -36,7 +36,7 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           # Get remote release info
-          REMOTE_RELEASE=$(curl -s https://api.github.com/repos/MorpheApp/revanced-patches/releases/latest)
+          REMOTE_RELEASE=$(curl -s https://api.github.com/repos/anddea/revanced-patches/releases/latest)
           REMOTE_TAG=$(echo "$REMOTE_RELEASE" | jq -r .tag_name)
           REMOTE_DATE=$(echo "$REMOTE_RELEASE" | jq -r .published_at)
           REMOTE_PATCH_ASSET=$(echo "$REMOTE_RELEASE" | jq -r '.assets // [] | map(select(.name | endswith(".rvp"))) | .[0].name // ""' | head -1)
@@ -86,7 +86,7 @@ jobs:
             if [ "$NEEDS_BUILD" = "true" ]; then
               echo "should_build=true" >> $GITHUB_OUTPUT
               echo "version_tag=$REMOTE_TAG" >> $GITHUB_OUTPUT
-              gh release view "$REMOTE_TAG" --repo MorpheApp/revanced-patches \
+              gh release view "$REMOTE_TAG" --repo anddea/revanced-patches \
                 --json body --template '{{.body}}' > changelog.txt || \
                 echo "No changelog available" > changelog.txt
             else
