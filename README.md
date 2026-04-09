@@ -1,19 +1,25 @@
-# ReVanced Magisk Module
-
-[![Telegram](https://img.shields.io/badge/Telegram-2CA5E0?style=for-the-badge&logo=telegram&logoColor=white)](https://t.me/rvc_magisk)
-[![CI](https://github.com/j-hc/revanced-magisk-module/actions/workflows/ci.yml/badge.svg?event=schedule)](https://github.com/j-hc/revanced-magisk-module/actions/workflows/ci.yml)
-
-Extensive ReVanced builder
-
-Get the [latest CI release](https://github.com/j-hc/revanced-magisk-module/releases).
-
-Use [**zygisk-detach**](https://github.com/j-hc/zygisk-detach) to detach YouTube and YT Music from Play Store if you are using magisk modules.
-
 # Hipsebek2020 / piko-anndea-auto-bulids
 
-Automated ReVanced and Piko builds.
+[![CI](https://github.com/Hipsebek2020/piko-anndea-auto-bulids/actions/workflows/ci.yml/badge.svg)](https://github.com/Hipsebek2020/piko-anndea-auto-bulids/actions/workflows/ci.yml)
 
-## Jak uruchomić build
+Zautomatyzowany system budowania plików APK ReVanced i Piko dla aplikacji Android.
+
+## 📋 Przegląd
+
+Projekt ten automatyzuje proces budowania i aktualizacji patchowanych aplikacji Android, w szczególności:
+- **YouTube** - z patchami ReVanced
+- **Twitter/X** - z patchami Morphe
+
+## ✨ Kluczowe funkcje
+
+- **Automatyczne codzienne buildy** - system automatycznie sprawdza aktualizacje i buduje nowe wersje codziennie o 16:00 UTC
+- **Tylko pliki APK** - gotowe do instalacji bez potrzeby roota
+- **Optymalizacja rozmiaru** - zoptymalizowane APK pod kątem rozmiaru
+- **Kompatybilność** - nie wymaga roota, działa na wszystkich urządzeniach
+
+## 🚀 Jak uruchomić build
+
+### Ręczne uruchomienie budowania
 
 Możesz ręcznie uruchomić budowanie aplikacji:
 
@@ -21,59 +27,61 @@ Możesz ręcznie uruchomić budowanie aplikacji:
 2. Wybierz workflow **Build Modules**.
 3. Kliknij **Run workflow** i potwierdź przyciskiem **Run workflow**.
 
-## Daily builds (schedule)
+### Automatyczne buildy
 
 Repozytorium jest skonfigurowane tak, aby automatycznie sprawdzać aktualizacje i budować nowe wersje codziennie o godzinie **16:00 UTC**.
 Możesz to zmienić w pliku `.github/workflows/ci.yml`.
 
-<details><summary><big>Features</big></summary>
-<ul>
- <li> Supports all present and future ReVanced apps (including projects implementing the same API)</li>
- <li> Can build Magisk modules and non-root APKs</li>
- <li> Updated daily with the latest versions of apps and patches</li>
- <li> Optimizes APKs and modules for size</li>
- <li> Modules</li>
-    <ul>
-     <li> recompile invalidated odex for faster usage</li>
-     <li> receive updates from Magisk app</li>
-     <li> do not break safetynet or trigger root detections</li>
-     <li> handle installation of the correct version of the stock app and all that</li>
-     <li> support Magisk and KernelSU</li>
-    </ul>
-</ul>
-</details>
+## ⚙️ Konfiguracja
 
-## To include/exclude patches or patch other apps
+Projekt używa plików TOML do konfiguracji budowania:
 
-- Star the repo :eyes:
-- Use the repo as a [template](https://github.com/new?template_name=revanced-magisk-module&template_owner=j-hc)
-- Customize [`config.toml`](./config.toml) using [rvmm-config-gen](https://j-hc.github.io/rvmm-config-gen/)
-- Run the build [workflow](../../actions/workflows/build.yml)
-- Grab your modules and APKs from [releases](../../releases)
+- **config.toml** - główna konfiguracja dla YouTube i Twitter/X
+- **config.youtube.toml** - konfiguracja specyficzna dla YouTube
+- **config.piko.toml** - konfiguracja specyficzna dla Twitter/X
 
-also see here [`CONFIG.md`](./CONFIG.md)
+Więcej informacji o konfiguracji znajdziesz w [`CONFIG.md`](./CONFIG.md).
 
-## If you are having trouble with the classic mount method of the modules
+## 🏗️ Budowanie lokalnie
 
-such as,
+### Na Termux
 
-- **"Reflash needed"** error after reboots
-- **"Suspicious mount detected"** warnings from root detector apps
-
-You can consider using [rvmm-zygisk-mount](https://github.com/j-hc/rvmm-zygisk-mount)
-
-## Building Locally
-
-### On Termux
-
-```console
+```bash
 bash <(curl -sSf https://raw.githubusercontent.com/j-hc/revanced-magisk-module/main/build-termux.sh)
 ```
 
-### On Linux
+### Na Linux
 
-```console
-$ git clone https://github.com/j-hc/revanced-magisk-module --depth 1
-$ cd revanced-magisk-module
-$ ./build.sh
+```bash
+git clone https://github.com/Hipsebek2020/piko-anndea-auto-bulids --depth 1
+cd piko-anndea-auto-bulids
+./build.sh
 ```
+
+## 📦 Wspierane aplikacje
+
+### YouTube (ReVanced)
+- Wersja: automatyczna lub określona w config
+- Architektura: arm64-v8a
+- Patche: GmsCore support
+
+### Twitter/X (Morphe)
+- Wersja: automatyczna
+- Architektura: arm64-v8a
+- Patche: Bring back twitter
+
+## 🔧 Funkcje
+
+- Wsparcie dla wszystkich obecnych i przyszłych aplikacji ReVanced
+- Budowanie plików APK bez roota
+- Codzienne aktualizacje z najnowszymi wersjami aplikacji i patchy
+- Optymalizacja APK pod kątem rozmiaru
+- Obsługa Magisk i KernelSU (dla modułów)
+
+## 📝 Źródło
+
+Ten projekt jest forkiem [j-hc/revanced-magisk-module](https://github.com/j-hc/revanced-magisk-module), rozszerzonym o automatyzację buildów Piko.
+
+## 📄 Licencja
+
+Ten projekt jest objęty licencją GPL-3.0. Szczegóły znajdziesz w pliku [`LICENSE`](./LICENSE).
