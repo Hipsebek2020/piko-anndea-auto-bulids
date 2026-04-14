@@ -4,6 +4,7 @@ debug = true
 
 [main]
 cli-source = "ReVanced/revanced-cli"
+patches-source = "anddea/revanced-patches"
 out-type = "apk"
 remove-rv-integrations-checks = true
 
