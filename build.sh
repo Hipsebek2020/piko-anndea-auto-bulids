@@ -63,7 +63,7 @@ for file in "$TEMP_DIR"/*/changelog.md; do
 	[ -f "$file" ] && : >"$file"
 done
 
-mkdir -p ${MODULE_TEMPLATE_DIR}/bin/arm64
+mkdir -p "${MODULE_TEMPLATE_DIR}/bin/arm64"
 gh_dl "${MODULE_TEMPLATE_DIR}/bin/arm64/cmpr" "https://github.com/j-hc/cmpr/releases/latest/download/cmpr-arm64-v8a"
 
 idx=0

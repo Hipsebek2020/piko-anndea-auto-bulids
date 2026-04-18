@@ -18,13 +18,13 @@ fi
 
 # Find and move APK files from temp directory
 APK_COUNT=0
-find temp -name "*.apk" -type f | while read apk; do
+while IFS= read -r -d '' apk; do
     if [ -f "$apk" ]; then
         echo "Moving: $(basename "$apk")"
         cp "$apk" build/
         APK_COUNT=$((APK_COUNT + 1))
     fi
-done
+done < <(find temp -name "*.apk" -type f -print0)
 
 # Verify APK files were moved
 FINAL_COUNT=$(find build -name "*.apk" -type f | wc -l)

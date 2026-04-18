@@ -121,7 +121,7 @@ install() {
 					ui_print "* Uninstalling..."
 					if ! op=$(pmex uninstall -k --user 0 "$PKG_NAME"); then
 						ui_print "$op"
-						if [ $IT = 2 ]; then
+						if [ "$IT" = 2 ]; then
 							install_err="ERROR: pm uninstall failed."
 							break
 						fi
@@ -145,9 +145,9 @@ install() {
 	settings put global package_verifier_enable "$VERIF2"
 	if [ "$install_err" ]; then abort "$install_err"; fi
 }
-if [ $INS = true ] && ! install; then abort; fi
+if [ "$INS" = true ] && ! install; then abort; fi
 BASEPATHLIB=${BASEPATH}/lib/${ARCH}
-if [ $INS = true ] || [ -z "$(ls -A1 "$BASEPATHLIB")" ]; then
+if [ "$INS" = true ] || [ -z "$(ls -A1 "$BASEPATHLIB")" ]; then
 	ui_print "* Extracting native libs"
 	if [ ! -d "$BASEPATHLIB" ]; then mkdir -p "$BASEPATHLIB"; else rm -f "$BASEPATHLIB"/* >/dev/null 2>&1 || :; fi
 	if ! op=$(unzip -o -j "$MODPATH/$PKG_NAME.apk" "lib/${ARCH_LIB}/*" -d "$BASEPATHLIB" 2>&1); then

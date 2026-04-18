@@ -18,9 +18,9 @@ OS=$(uname -o)
 
 toml_prep() {
 	if [ ! -f "$1" ]; then return 1; fi
-	if [ "${1##*.}" == toml ]; then
+	if [ "${1##*.}" = toml ]; then
 		__TOML__=$(yq -o json "$1")
-	elif [ "${1##*.}" == json ]; then
+	elif [ "${1##*.}" = json ]; then
 		__TOML__=$(cat "$1")
 	else abort "config extension not supported"; fi
 }
@@ -219,7 +219,7 @@ get_prebuilts() {
 		fi
 
 		if [ "$tag" = "Patches" ]; then
-			if [ $grab_cl = true ]; then echo -e "[Changelog](https://github.com/${src}/releases/tag/${tag_name})\n" >>"${cl_dir}/changelog.md"; fi
+			if [ "$grab_cl" = true ]; then echo -e "[Changelog](https://github.com/${src}/releases/tag/${tag_name})\n" >>"${cl_dir}/changelog.md"; fi
 			if [ "$REMOVE_RV_INTEGRATIONS_CHECKS" = true ]; then
 				local shared_entry work_dir shared_file shared_patched extensions_ext tmp_file patch_op
 				shared_entry=$(unzip -Z1 "${file}" "extensions/shared.*" 2>/dev/null | head -1 || :)
@@ -570,11 +570,11 @@ dl_uptodown() {
 			resp=$(req "${uptodown_dlurl}/download/${data_file_id}-x" -)
 			break
 		done
-		if [ $n -eq 12 ]; then return 1; fi
+		if [ "$n" -eq 12 ]; then return 1; fi
 	fi
 	local data_url
 	data_url=$($HTMLQ "#detail-download-button" --attribute data-url <<<"$resp") || return 1
-	if [ $is_bundle = true ]; then
+	if [ "$is_bundle" = true ]; then
 		req "https://dw.uptodown.com/dwn/${data_url}" "$output.apkm" || return 1
 		merge_splits "${output}.apkm" "${output}"
 	else
@@ -681,7 +681,7 @@ build_rv() {
 		version=$version_mode
 		p_patcher_args+=("-f")
 	fi
-	if [ $get_latest_ver = true ]; then
+	if [ "$get_latest_ver" = true ]; then
 		if [ "$version_mode" = beta ]; then __AAV__="true"; else __AAV__="false"; fi
 		pkgvers=$(get_"${dl_from}"_vers)
 		version=$(get_highest_ver <<<"$pkgvers") || version=$(head -1 <<<"$pkgvers")

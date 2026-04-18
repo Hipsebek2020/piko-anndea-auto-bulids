@@ -13,11 +13,11 @@ until [ -d "/sdcard/Android" ]; do sleep 1; done
 while
 	BASEPATH=$(pm path "$PKG_NAME" 2>&1 </dev/null)
 	SVCL=$?
-	[ $SVCL = 20 ]
+	[ "$SVCL" = 20 ]
 do sleep 2; done
 
 run() {
-	if [ $SVCL != 0 ]; then
+	if [ "$SVCL" != 0 ]; then
 		err "app not installed"
 		return
 	fi

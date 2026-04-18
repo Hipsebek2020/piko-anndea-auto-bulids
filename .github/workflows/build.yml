@@ -63,12 +63,12 @@ jobs:
             # Check if remote date is newer than either local date, or patch asset changed
             NEEDS_BUILD=false
             
-            if [ -z "$LOCAL_YT_DATE" ] || [ "$REMOTE_DATE" > "$LOCAL_YT_DATE" ]; then
+            if [ -z "$LOCAL_YT_DATE" ] || [ "$(date -d "$REMOTE_DATE" +%s)" -gt "$(date -d "$LOCAL_YT_DATE" +%s)" ]; then
               NEEDS_BUILD=true
               echo "YouTube needs update: new remote release"
             fi
             
-            if [ -z "$LOCAL_PX_DATE" ] || [ "$REMOTE_DATE" > "$LOCAL_PX_DATE" ]; then
+            if [ -z "$LOCAL_PX_DATE" ] || [ "$(date -d "$REMOTE_DATE" +%s)" -gt "$(date -d "$LOCAL_PX_DATE" +%s)" ]; then
               NEEDS_BUILD=true
               echo "PikoX needs update: new remote release"
             fi
