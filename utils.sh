@@ -131,7 +131,7 @@ get_release_asset_candidates() {
 			if [ -n "$non_dev" ]; then candidates=$non_dev; fi
 		fi
 	elif [ "$tag" = "Patches" ]; then
-		candidates=$(jq -r '.assets[]? | select(.name | endswith(".rvp")) | [.name, .url] | @tsv' <<<"$resp")
+		candidates=$(jq -r '.assets[]? | select(.name | endswith(".rvp") or endswith(".mpp")) | [.name, .url] | @tsv' <<<"$resp")
 	else
 		abort "unknown prebuilt tag '$tag'"
 	fi
