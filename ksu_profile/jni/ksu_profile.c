@@ -109,11 +109,11 @@ int main(int argc, char* argv[]) {
         return 1;
     }
     struct app_profile profile = {0};
+    profile.version = KSU_APP_PROFILE_VER;
+    strncpy(profile.key, argv[2], sizeof(profile.key) / sizeof(profile.key[0]));
     profile.current_uid = uid;
     if (!ksuctl(KSU_IOCTL_GET_APP_PROFILE, &profile)) {
         printf("Create profile for %s\n", argv[2]);
-        profile.version = KSU_APP_PROFILE_VER;
-        strncpy(profile.key, argv[2], sizeof(profile.key) / sizeof(profile.key[0]));
     }
 
     profile.nrp_config.use_default = false;
