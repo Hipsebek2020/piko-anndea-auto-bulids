@@ -1,38 +1,24 @@
-```
-# Compiled and build artifacts
-*.o
-*.obj
-*.so
-*.a
-*.dll
-*.exe
-*.out
-
-# Dependencies
-node_modules/
-venv/
-.venv/
-__pycache__/
-.mypy_cache/
-.pytest_cache/
-target/
-.gradle/
-
-# Logs and temp files
+# Builds and artifacts
+*.apk
+*.apks
+build/
+temp/
+out/
+logs/
 *.log
-*.tmp
-*.swp
 
-# Environment
+# Keystore and sensitive files
+ks.keystore
+*.keystore
+*.jks
+sig.txt
 .env
-.env.local
-*.env.*
+
+# Temp and cache
+__pycache__/
+*.tmp
+.DS_Store
 
 # Editors
 .vscode/
 .idea/
-
-# Build directories
-build/
-dist/
-```
