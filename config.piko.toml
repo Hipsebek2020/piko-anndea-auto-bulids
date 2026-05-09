@@ -1,13 +1,12 @@
 parallel-jobs = 1
 remove-rv-integrations-checks = true
-debug = true
+debug = false
 
 [main]
 cli-source = "ReVanced/revanced-cli"
 patches-source = "anddea/revanced-patches"
-patches-version = "v3.16.0"
+patches-version = "latest"
 out-type = "apk"
-remove-rv-integrations-checks = true
 
 [default]
 cli-source = "ReVanced/revanced-cli"
@@ -23,9 +22,7 @@ include-stock = false
 
 cli-source = "ReVanced/revanced-cli"
 patches-source = "anddea/revanced-patches"
-integrations-source = ""
 
 patcher-args = "-e 'Bring back twitter'"
 
-archive-dlurl = "https://archive.org/download/geologically/apks/com.twitter.android/"
 dpi = "120-640dpi"
