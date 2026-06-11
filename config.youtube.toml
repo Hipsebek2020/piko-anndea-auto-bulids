@@ -2,8 +2,8 @@ parallel-jobs = 1
 remove-rv-integrations-checks = true
 debug = true
 
-[main]
 cli-source = "ReVanced/revanced-cli"
+cli-version = "v5.0.1"
 patches-source = "anddea/revanced-patches"
 patches-version = "v3.16.0"
 out-type = "apk"
@@ -13,7 +13,8 @@ remove-rv-integrations-checks = true
 cli-source = "ReVanced/revanced-cli"
 cli-args = []
 
-[[youtube-morphe]]
+# ==================== YouTube Morphe ====================
+[youtube-morphe]
 app-name = "com.google.android.youtube"
 enabled = true
 build-mode = "apk"
@@ -25,6 +26,6 @@ cli-source = "ReVanced/revanced-cli"
 patches-source = "anddea/revanced-patches"
 integrations-source = ""
 
-patcher-args = "--include 'GmsCore support'"
+patcher-args = "-e 'GmsCore support'"
 
 archive-dlurl = "https://archive.org/download/geologically/apks/com.google.android.youtube/"
