@@ -1,9 +1,5 @@
 #!/usr/bin/env bash
 
-# Use newer bash if available
-if [ -x "/usr/local/bin/bash" ]; then
-    exec /usr/local/bin/bash "$0" "$@"
-fi
 
 MODULE_TEMPLATE_DIR="module"
 CWD=$(pwd)
@@ -56,9 +52,9 @@ abort() {
 }
 java() { 
     if [ -d "/usr/local/opt/openjdk@17" ]; then
-        env -i JAVA_HOME="/usr/local/opt/openjdk@17" PATH="/usr/local/opt/openjdk@17/bin:$PATH" /usr/local/opt/openjdk@17/bin/java "$@"
+        JAVA_HOME="/usr/local/opt/openjdk@17" PATH="/usr/local/opt/openjdk@17/bin:$PATH" /usr/local/opt/openjdk@17/bin/java "$@"
     else
-        env -i java "$@"
+        java "$@"
     fi
 }
 

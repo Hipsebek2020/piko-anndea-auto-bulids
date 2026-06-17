@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 
 # Use newer bash if available
-if [ -x "/usr/local/bin/bash" ]; then
+if [ -x "/usr/local/bin/bash" ] && [ "$BASH" != "/usr/local/bin/bash" ]; then
     exec /usr/local/bin/bash "$0" "$@"
 fi
 
